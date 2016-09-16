@@ -1,4 +1,5 @@
-#!/usr/bin/env node
-"use strict";
-require('source-map-support').install();
-require('../build/index.js').repl();
+#!/usr/bin/node
+let ennube = require('../build/index.js')
+let project = new ennube.Project(process.cwd())
+let shell = new ennube.Shell(project);
+shell.run();

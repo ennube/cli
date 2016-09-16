@@ -1,5 +1,4 @@
 "use strict";
-var es6_promise_1 = require('es6-promise');
 var fs = require('fs');
 var yaml = require('js-yaml');
 var archiver = require('archiver');
@@ -24,7 +23,7 @@ function writeYamlSync(filename, data) {
 }
 exports.writeYamlSync = writeYamlSync;
 function zipDirectory(directory, output) {
-    return new es6_promise_1.Promise(function (resolve, reject) {
+    return new Promise(function (resolve, reject) {
         output = output || directory + ".zip";
         var outFile = fs.createWriteStream(output);
         var archive = archiver.create('zip', {});

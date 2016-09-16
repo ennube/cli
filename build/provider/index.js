@@ -1,4 +1,4 @@
 "use strict";
-var _aws = require('./aws/index');
-exports.aws = _aws;
+var amazon_1 = require('./amazon');
+exports.Amazon = amazon_1.Amazon;
 //# sourceMappingURL=index.js.map

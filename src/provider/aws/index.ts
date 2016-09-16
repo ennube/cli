@@ -1,60 +1,44 @@
-import {Project, Step, ParallelTask, SerialTask} from '../../core';
-import {Bucket} from './resource';
+import * as _common from './common';
+export const common = _common;
 
-export class Deployment extends SerialTask {
-    buckets: { [key:string]: Bucket };
+import * as _cloudFormation from './cloudFormation';
+export const cloudFormation = _cloudFormation;
 
-    constructor(public project: Project, public stage:string='development', public region:string = 'us-east-1') {
-        super(`Deploying ${project.name} ${stage} stage on ${region}`);
-    }
+import * as _gateway from './gateway';
+export const gateway = _gateway;
 
-    get stackName(): string {
-        return `${this.project.name}-${this.stage}`;
-    }
+import * as _lambda from './lambda';
+export const lambda = _lambda;
+
+import * as _s3 from './s3';
+export const s3 = _s3;
+
+
+
+import * as aws from 'aws-sdk';
+
+function send(request) {
+    return new Promise((resolve, reject) => {
+        request
+        .on('success', (response) => resolve(response) )
+        .on('error', (response) => reject(response) )
+        .send();
+    });
 }
 
-class PrepareStack extends SerialTask {
-    constructor(deployment: Deployment) {
-        super(`Preparing stack ${deployment.name}`);
+export class CloudFormationClient {
+    client: any;
 
+    constructor(){
+        this.client = new aws['CloudFormation']({
+            region: 'us-east-1'
+        });
+
+    }
+
+    validateTemplate(template: Object){
+        return send(this.client.validateTemplate({
+            TemplateBody: JSON.stringify(template)
+        }));
     }
 }
-/*
-class DeployStage extends SerialTask {
-    constructor(deployment: Deployment) {
-        super(`Deploying ${project.name}`);
-
-        this.appendStep( new ZipDirectory(project.buildDir) );
-    }
-}*/
-
-export class EnsureBucket extends Step {
-    constructor(public bucket: Bucket) {
-        super(`Ensuring the existence of the bucket ${bucket.name}`);
-    }
-
-    perform() {
-        return this.bucket.create();
-    }
-}
-/*
-
-export class CreateBucketFolder extends Task<Deployer> {
-    constructor(public bucket: string, public folder: string) {
-        super();
-    }
-
-    logEntry(){
-        console.log(`Creating folder ${this.folder} on ${this.bucket} bucket`);
-    }
-
-    task(deployer: Deployer) {
-        let bucket = deployer.buckets[this.bucket];
-        return bucket.createFolder(this.folder);
-    }
-}
-
-*/
-//export * from './core';
-//export * from './tasks';
-//export * from './targets';
