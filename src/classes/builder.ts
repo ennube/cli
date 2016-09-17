@@ -1,12 +1,8 @@
 import {Shell} from './shell';
 import {Project} from './project';
-
-import {allServiceRecords, handler} from '@ennube/runtime';
-
 import * as webpack from 'webpack';
 import * as child_process from 'child_process';
 import * as fs from 'fs-extra';
-
 
 export class Builder {
 
@@ -23,7 +19,7 @@ export class Builder {
             })
         });
     }
-
+/*
 
     packing() {
         this.project.ensureLoaded();
@@ -60,7 +56,7 @@ export class Builder {
         for(let serviceClassName in entrySet ) {
             let entry = entrySet[serviceClassName];
 
-            this.replicatesModularStructure(require.cache[entry[0]],
+        //    this.replicatesModularStructure(require.cache[entry[0]],
                 `${this.project.directory}/build/${serviceClassName}`);
         }
 
@@ -88,49 +84,5 @@ export class Builder {
             });
         });
     }
-
-    replicatesModularStructure(module: NodeModule, packingDir: string) {
-        let pendingList = [module];
-        let checkMap = {};
-
-        for(module of pendingList) {
-            if(module.filename in checkMap)
-                continue;
-            checkMap[module.filename] = true;
-
-            var location;
-            if( module.filename.startsWith(this.project.buildDir) )
-                location = module.filename.substr(this.project.buildDir.length);
-            else if( module.filename.startsWith(this.project.directory) )
-                location = module.filename.substr(this.project.directory.length);
-            else
-                continue;
-
-            (fs.ensureSymlinkSync as any)(module.filename,
-                `${packingDir}${location}`, (err) => {
-                if(err)
-                    console.log(err) // => null
-//                else
-//                    console.log(`${module.filename} → ${packingDir}${location}`);
-            });
-
-            pendingList.push(...module.children);
-        }
-    }
-
-
-    @Shell.command('build')
-    runBuild(args) {
-        this.build()
-        .then((stdout) => {
-            console.log(stdout);
-            this.packing()
-            .then(() => {
-
-            })
-            .catch((e) => console.log(e));
-
-        })
-        .catch((e) => console.log(e));
-    }
+*/
 }

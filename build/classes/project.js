@@ -1,8 +1,11 @@
 "use strict";
 var fs = require('fs-extra');
+var runtime_1 = require('@ennube/runtime');
+var classes = require('../classes');
 var Project = (function () {
     function Project(directory) {
         this.directory = directory;
+        this.serviceModules = {};
         this.npmFileName = directory + "/package.json";
         this.tscFileName = directory + "/tsconfig.json";
         if (fs.existsSync(this.npmFileName))
@@ -30,7 +33,35 @@ var Project = (function () {
     });
     Project.prototype.ensureLoaded = function () {
         if (!this.mainModule) {
-            return this.mainModule = require(this.mainModuleFileName);
+            this.mainModule = require(this.mainModuleFileName);
+            this.discoverServices();
+        }
+    };
+    Object.defineProperty(Project.prototype, "builder", {
+        get: function () {
+            var builder = this._builder;
+            if (!builder)
+                builder = this._builder = new classes.Builder(this);
+            return builder;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Project.prototype.discoverServices = function () {
+        this.ensureLoaded();
+        for (var moduleId in require.cache) {
+            var module_1 = require.cache[moduleId];
+            if (!module_1.filename.startsWith(this.buildDir))
+                continue;
+            for (var serviceName in runtime_1.serviceClasses) {
+                var serviceClass = runtime_1.serviceClasses[serviceName];
+                if (serviceName in module_1.exports &&
+                    serviceClass === module_1.exports[serviceClass.name]) {
+                    console.log(("service " + serviceClass.name + " found in ") +
+                        module_1.filename.substr(this.buildDir.length));
+                    this.serviceModules[serviceName] = module_1.filename;
+                }
+            }
         }
     };
     return Project;

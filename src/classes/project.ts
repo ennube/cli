@@ -1,5 +1,10 @@
 import * as fs from 'fs-extra';
 //require('source-map-support').install();
+import {serviceClasses} from '@ennube/runtime';
+
+import * as classes from '../classes';
+
+
 
 export class Project {
     npmFileName: string;
@@ -19,6 +24,10 @@ export class Project {
             outDir: string;
         };
     };
+
+    serviceModules: {
+        [name:string]: string
+    } = {}
 
 
 //    index: any; // ..loaded module index..
@@ -54,9 +63,43 @@ export class Project {
     }
 
     ensureLoaded() {
+        // ensure builded, require Builder here..
         if(!this.mainModule) {
             // ... config process.env variables...
-            return this.mainModule = require(this.mainModuleFileName);
+            this.mainModule = require(this.mainModuleFileName);
+            // another checks here...
+            this.discoverServices();
+        }
+    }
+
+    private _builder: classes.Builder;
+    get builder(): classes.Builder {
+        let builder = this._builder;
+        if(!builder)
+            builder = this._builder = new classes.Builder(this);
+        return builder;
+    }
+
+    discoverServices() {
+        this.ensureLoaded();
+
+        for(let moduleId in require.cache ) {
+            let module = require.cache[moduleId];
+
+            if(!module.filename.startsWith(this.buildDir))
+                continue;
+
+            for(let serviceName in serviceClasses ) {
+                let serviceClass = serviceClasses[serviceName];
+
+                if( serviceName in module.exports &&
+                    serviceClass === module.exports[serviceClass.name]) {
+                    console.log(`service ${serviceClass.name} found in ` +
+                                module.filename.substr(this.buildDir.length));
+
+                    this.serviceModules[serviceName] = module.filename;
+                }
+            }
         }
     }
 

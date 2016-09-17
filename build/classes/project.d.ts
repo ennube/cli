@@ -1,4 +1,5 @@
 /// <reference types="core-js" />
+import * as classes from '../classes';
 export declare class Project {
     directory: string;
     npmFileName: string;
@@ -14,8 +15,14 @@ export declare class Project {
             outDir: string;
         };
     };
+    serviceModules: {
+        [name: string]: string;
+    };
     constructor(directory: string);
     readonly buildDir: string;
     readonly mainModuleFileName: string;
-    ensureLoaded(): any;
+    ensureLoaded(): void;
+    private _builder;
+    readonly builder: classes.Builder;
+    discoverServices(): void;
 }
