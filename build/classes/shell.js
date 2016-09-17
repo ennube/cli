@@ -19,22 +19,32 @@ var Shell = (function () {
         var _this = this;
         var shell = this;
         yargs.usage('$0 <command>');
-        var mainModule = require(this.project.mainModuleFileName);
         _.forOwn(Shell.commands, function (info, command) {
             yargs.command(command, info.description, info.builder, function (args) {
-                var commandService;
-                if (_this.commandServices.has(info.constructor))
-                    commandService = _this.commandServices.get(info.constructor);
-                else {
+                var commandService = _this.commandServices.get(info.constructor);
+                if (commandService === undefined)
                     commandService = new info.constructor(_this.project);
-                }
-                try {
-                    var result = commandService[info.methodName](args);
-                }
-                catch (e) {
-                    console.log(e);
-                }
+                return new Promise(function (resolve, reject) {
+                    try {
+                        var result = commandService[info.methodName](args);
+                    }
+                    catch (e) {
+                        console.log(e);
+                    }
+                    resolve();
+                });
             });
+        });
+        yargs
+            .fail(function (msg) {
+            var err = [];
+            for (var _i = 1; _i < arguments.length; _i++) {
+                err[_i - 1] = arguments[_i];
+            }
+            if (err[0])
+                throw err[0];
+            console.error(msg);
+            process.exit(1);
         });
         return yargs.help().argv;
     };

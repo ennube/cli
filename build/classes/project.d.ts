@@ -3,6 +3,7 @@ export declare class Project {
     directory: string;
     npmFileName: string;
     tscFileName: string;
+    mainModule: Object;
     npm: {
         name: string;
         version: string;
@@ -13,9 +14,8 @@ export declare class Project {
             outDir: string;
         };
     };
-    mainModule: Object;
     constructor(directory: string);
+    readonly buildDir: string;
     readonly mainModuleFileName: string;
-    loadMainModule(): any;
-    readonly isLoaded: boolean;
+    ensureLoaded(): any;
 }

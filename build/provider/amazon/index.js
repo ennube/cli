@@ -9,11 +9,15 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 var classes_1 = require('../../classes');
-var sdk_1 = require('@ennube/sdk');
+var runtime_1 = require('@ennube/runtime');
 var change_case_1 = require('change-case');
 var _ = require('lodash');
+var fs = require('fs-extra');
 var yaml = require('js-yaml');
 var aws = require('aws-sdk');
+var httpResponsecodes = {
+    200: 'Found',
+};
 var Amazon = (function () {
     function Amazon(project) {
         this.project = project;
@@ -23,6 +27,7 @@ var Amazon = (function () {
         this.Conditions = {};
         this.Resources = {};
         this.Outputs = {};
+        project.ensureLoaded();
         this.client = new aws['CloudFormation']({
             region: 'us-east-1'
         });
@@ -35,67 +40,60 @@ var Amazon = (function () {
             Resources: this.Resources,
             Outputs: this.Outputs
         };
-        project.loadMainModule();
         this.buildGateway();
     }
     Amazon.prototype.buildGateway = function () {
         var _this = this;
         gatewayIterator(function (gateway, url, method, endpoint) {
-            _this.ensureGateway(gateway);
-            var urlId = _this.ensureGatewayUrl(gateway, url);
-            _this.createGatewayUrlMethod(gateway, urlId, method, '<lambda id>');
-        });
-        console.log(yaml.dump(this.Template));
-    };
-    Amazon.prototype.ensureGateway = function (gateway) {
-        var id = gatewayId(gateway);
-        if (id in this.Resources)
-            return;
-        this.Resources[id] = {
-            Type: 'AWS::ApiGateway::RestApi',
-            Properties: {
-                Name: change_case_1.pascalCase(gateway)
-            }
-        };
-    };
-    Amazon.prototype.ensureGatewayUrl = function (gateway, url) {
-        url = _.trim(url, '/');
-        if (!url.length)
-            return;
-        var parts = [];
-        var prevId;
-        for (var _i = 0, _a = url.split('/'); _i < _a.length; _i++) {
-            var urlPart = _a[_i];
-            parts.push(urlPart);
-            var id = gatewayUrlId(gateway, parts);
-            if (id in this.Resources)
-                continue;
-            this.Resources[id] = {
-                Type: 'AWS::ApiGateway::Resource',
+            url = _.trim(url, '/');
+            var gatewayId = getGatewayId(gateway);
+            if (!(gatewayId in _this.Resources))
+                _this.Resources[gatewayId] = {
+                    Type: 'AWS::ApiGateway::RestApi',
+                    Properties: {
+                        Name: _this.project.npm.name + "-" + gateway
+                    }
+                };
+            var urlParts = [];
+            var urlArgs = [];
+            var parentResourceId;
+            if (!!url)
+                for (var _i = 0, _a = url.split('/'); _i < _a.length; _i++) {
+                    var urlPart = _a[_i];
+                    urlParts.push(urlPart);
+                    var resourceId = getGatewayUrlId(gateway, urlParts);
+                    if (!(resourceId in _this.Resources))
+                        _this.Resources[resourceId] = {
+                            Type: 'AWS::ApiGateway::Resource',
+                            Properties: {
+                                RestApiId: ref(gatewayId),
+                                ParentId: parentResourceId ?
+                                    ref(parentResourceId) :
+                                    getAtt(gatewayId, 'RootResourceId'),
+                                PathPart: urlPart
+                            }
+                        };
+                    parentResourceId = resourceId;
+                }
+            var methodId = getGatewayUrlMethodId(gateway, urlParts, method);
+            _this.Resources[methodId] = {
+                Type: 'AWS::ApiGateway::Method',
                 Properties: {
-                    RestApiId: ref(gatewayId(gateway)),
-                    ParentId: prevId ? ref(prevId) :
-                        getAtt(gatewayId(gateway), 'RootResourceId'),
-                    PathPart: urlPart
+                    RestApiId: ref(gatewayId),
+                    ResourceId: parentResourceId ?
+                        ref(parentResourceId) :
+                        getAtt(gatewayId, 'RootResourceId'),
+                    HttpMethod: method.toUpperCase(),
+                    AuthorizationType: 'NONE',
+                    RequestParameters: {},
+                    Integration: {
+                        Type: 'MOCK',
+                        IntegrationHttpMethod: method.toUpperCase(),
+                    },
                 }
             };
-            prevId = id;
-        }
-        return prevId;
-    };
-    Amazon.prototype.createGatewayUrlMethod = function (gateway, resourceId, method, lambdaId) {
-        var id = resourceId + method.toUpperCase();
-        this.Resources[id] = {
-            Type: 'AWS::ApiGateway::Method',
-            Properties: {
-                RestApiId: ref(gatewayId(gateway)),
-                ResourceID: resourceId ? ref(resourceId) :
-                    getAtt(gatewayId(gateway), 'RootResourceId'),
-                HttpMethod: method.toLowerCase(),
-                RequestParameters: {},
-                Integration: {},
-            }
-        };
+        });
+        fs.writeFileSync('template.yaml', yaml.dump(this.Template));
     };
     Amazon.prototype.validate = function (args) {
         this.send('validateTemplate', {
@@ -105,13 +103,12 @@ var Amazon = (function () {
             .catch(function (x) { return console.log('ER', x); });
     };
     Amazon.prototype.create = function (args) {
-        var stage;
+        var stage = 'dev';
         this.send('createStack', {
-            StackName: stackName(this.project.npm.name, stage),
+            StackName: getStackName(this.project.npm.name, stage),
             TemplateBody: JSON.stringify(this.Template),
-            OnFailure: 'DELETE',
         })
-            .then(function (x) { return console.log('OK'); })
+            .then(function (x) { return console.log('OK', x); })
             .catch(function (x) { return console.log('ER', x); });
     };
     Amazon.prototype.send = function (method, params) {
@@ -138,7 +135,7 @@ var Amazon = (function () {
     return Amazon;
 }());
 exports.Amazon = Amazon;
-function stackName(projectName, stage) {
+function getStackName(projectName, stage) {
     return change_case_1.pascalCase(projectName) + "-" + change_case_1.pascalCase(stage);
 }
 function ref(id) {
@@ -147,20 +144,23 @@ function ref(id) {
 function getAtt(id, attr) {
     return { "Fn::GetAtt": [id, attr] };
 }
-function gatewayId(gateway) {
+function getGatewayId(gateway) {
     return "Gateway" + change_case_1.pascalCase(gateway);
 }
-function gatewayUrlId(gateway, parts) {
-    return gatewayId(gateway) + "URL" +
+function getGatewayUrlId(gateway, parts) {
+    return getGatewayId(gateway) + "URL" +
         parts.map(function (v) { return change_case_1.pascalCase(_.trim(v, '{}')); }).join('SLASH');
 }
+function getGatewayUrlMethodId(gateway, parts, method) {
+    return getGatewayUrlId(gateway, parts) + method.toUpperCase();
+}
 function gatewayIterator(callback) {
-    for (var gatewayId_1 in sdk_1.http.allGateways) {
-        var gateway = sdk_1.http.allGateways[gatewayId_1];
+    for (var gatewayId in runtime_1.http.allGateways) {
+        var gateway = runtime_1.http.allGateways[gatewayId];
         for (var url in gateway.endpoints) {
             var urlMethods = gateway.endpoints[url];
             for (var method in urlMethods)
-                callback(gatewayId_1, url, method, urlMethods[method]);
+                callback(gatewayId, url, method, urlMethods[method]);
         }
     }
 }

@@ -1,57 +1,15 @@
 # Ennube Shell
 
-    Ennube is a REPL / CLI toolkit for development of the cloud based web
-    applications.
+**: The project is currently in 0.1-alpha status. :**
 
-    ennube
+Ennube shell is a CLI toolkit for automated Deployment of cloud based AWS
+web applications.
 
-    > .endpoint add service.handler
+## Deployment workflow
 
-    ennube endpoint add service.handler
-
-
-
-## Features
-
-    Current features:
-
-    **: The project is currently in 0.1 alpha status. :**
-
-    Things are doing:
-
-    - [ ] Building & packaging:
-            - [ ] Typescript analizer
-        - [ ] Webpack:
-            - [ ] Microservice individual packaging.
-            - [ ] Static files packageging
-
-    - [ ] Deployment:
-        - [ ] AWS Integration
-            - [ ] S3 buckets
-            - [ ] Cloud Formation
-            - [ ] API Gateway (throught clofud formation)
-            - [ ] Lambda functions (throught clofud formation)
-
-
-    things that will come later:
-
-    - Building & packaging:
-
-    - Deployment:
-        - AWS Integration
-            - Cloud search
-            - Route 53
-
-## Installation
-
-    Not launched
-
-## Design concepts
-
-    Shell
-    :   user interface that orchestrates the reception and execution of orders.
-
-    - Project:
-    - Command:
-    - Task:
-    - Step:
+- [x] Builds the service project througth Typescript compiler.
+- [x] Load project main module.
+- [ ] Webpack the several project services.
+- [ ] Upload project packages to S3 deploy bucket.
+- [ ] Update cloud formation stack.
+- [ ] Verify stack update success.

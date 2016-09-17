@@ -14,6 +14,13 @@ var Project = (function () {
         else
             throw new Error("You must run ennube into a tsc inited directory");
     }
+    Object.defineProperty(Project.prototype, "buildDir", {
+        get: function () {
+            return this.directory + "/" + this.tsc.compilerOptions.outDir;
+        },
+        enumerable: true,
+        configurable: true
+    });
     Object.defineProperty(Project.prototype, "mainModuleFileName", {
         get: function () {
             return this.directory + "/" + this.npm.main;
@@ -21,16 +28,11 @@ var Project = (function () {
         enumerable: true,
         configurable: true
     });
-    Project.prototype.loadMainModule = function () {
-        return this.mainModule = require(this.mainModuleFileName);
+    Project.prototype.ensureLoaded = function () {
+        if (!this.mainModule) {
+            return this.mainModule = require(this.mainModuleFileName);
+        }
     };
-    Object.defineProperty(Project.prototype, "isLoaded", {
-        get: function () {
-            return !!this.mainModule;
-        },
-        enumerable: true,
-        configurable: true
-    });
     return Project;
 }());
 exports.Project = Project;

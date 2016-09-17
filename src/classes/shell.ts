@@ -46,40 +46,36 @@ export class Shell implements ICommandService {
         let shell = this;
         yargs.usage('$0 <command>');
 
-        let mainModule = require(this.project.mainModuleFileName);
-
         _.forOwn(Shell.commands, (info, command) => {
             yargs.command(
                 command,
                 info.description,
                 info.builder,
                 (args) => {
-                    //console.log(`invoke ${command}`);
-                    //console.dir(info);
-                    var commandService;
 
-                    if(this.commandServices.has(info.constructor))
-                        commandService = this.commandServices.get(info.constructor);
-                    else {
+                    var commandService = this.commandServices.get(info.constructor);
+                    if( commandService === undefined)
                         commandService = new info.constructor(this.project);
-                    }
 
-                    // execute command
-                    try{
-                        let result = commandService[info.methodName](args);
-                    }
-                    catch(e) {
-                        console.log(e);
-                    }
-/*
-                    if(result instanceof Promise) result
-                        .then()
-                        .catch()
-*/
+                    return new Promise((resolve, reject)=>{
+                        try {
+                            let result = commandService[info.methodName](args);
+                        }
+                        catch(e) {
+                            console.log(e);
+                        }
+                        resolve();
+                    });
                 }
             );
         });
 
+        yargs
+        .fail((msg, ...err: any[]) => {
+          if (err[0]) throw err[0] // preserve stack
+          console.error(msg)
+          process.exit(1)
+        })
 
         return yargs.help().argv;
     }

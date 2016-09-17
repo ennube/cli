@@ -6,6 +6,8 @@ export class Project {
     tscFileName: string;
 //    stackFileName: string;
 
+    mainModule: Object;
+
     npm: {
         name: string,
         version: string,
@@ -18,8 +20,6 @@ export class Project {
         };
     };
 
-
-    mainModule: Object;
 
 //    index: any; // ..loaded module index..
 
@@ -45,19 +45,20 @@ export class Project {
             this.stack = {};*/
     }
 
+    get buildDir() {
+        return `${this.directory}/${this.tsc.compilerOptions.outDir}`;
+    }
+
     get mainModuleFileName() {
         return `${this.directory}/${this.npm.main}`;
     }
 
-    loadMainModule() {
-        // TODO: check
-        return this.mainModule = require(this.mainModuleFileName);
+    ensureLoaded() {
+        if(!this.mainModule) {
+            // ... config process.env variables...
+            return this.mainModule = require(this.mainModuleFileName);
+        }
     }
-
-    get isLoaded(){
-        return !!this.mainModule;
-    }
-
 
 /*
     save() {
