@@ -9,7 +9,8 @@ web applications.
 
 - [x] Builds the service project througth Typescript compiler.
 - [x] Load project main module.
-- [ ] Webpack the several project services.
-- [ ] Upload project packages to S3 deploy bucket.
-- [ ] Update cloud formation stack.
+- [x] Webpack the several project services (project segmentation).
+- [x] Upload project packages to S3 deploy bucket.
+- [ ] Build gateway integration.
+- [x] Update cloud formation stack.
 - [ ] Verify stack update success.
