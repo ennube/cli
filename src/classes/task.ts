@@ -3,7 +3,7 @@ export type StepCall = [string, any[]];
 
 export class Task {
 
-    constructor(public steps: StepCall[]){
+    constructor(public steps: StepCall[]) {
 
     }
 

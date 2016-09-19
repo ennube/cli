@@ -1,6 +1,7 @@
 "use strict";
 var yargs = require('yargs');
 var _ = require('lodash');
+var runtime_1 = require('@ennube/runtime');
 var Shell = (function () {
     function Shell(project) {
         this.project = project;
@@ -24,15 +25,16 @@ var Shell = (function () {
                 var commandService = _this.commandServices.get(info.constructor);
                 if (commandService === undefined)
                     commandService = new info.constructor(_this.project);
-                return new Promise(function (resolve, reject) {
-                    try {
-                        var result = commandService[info.methodName](args);
-                    }
-                    catch (e) {
-                        console.log(e);
-                    }
-                    resolve();
-                });
+                try {
+                    var result = commandService[info.methodName](args);
+                    if (runtime_1.typeOf(result) === Promise)
+                        result
+                            .then(function (x) { return console.log('OK', x); })
+                            .catch(function (x) { return console.log('ER', x); });
+                }
+                catch (e) {
+                    console.log(e);
+                }
             });
         });
         yargs

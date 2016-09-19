@@ -10,51 +10,67 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 var shell_1 = require('./shell');
 var fs = require('fs-extra');
+var webpack = require('webpack');
+var archiver = require('archiver');
 var Packager = (function () {
     function Packager(project) {
         this.project = project;
     }
-    Packager.prototype.modularStructureReplication = function () {
+    Packager.prototype.packup = function (args) {
+        var _this = this;
+        this.webpackServices().then(function () {
+            _this.zip();
+        });
+    };
+    Packager.prototype.webpackServices = function () {
+        console.log('Packing services...');
         this.project.ensureLoaded();
-        var _loop_1 = function(serviceName) {
-            console.log("replicates the modular structure of " + serviceName);
-            var packingDir = this_1.project.directory + "/build/" + serviceName;
-            var pendingList = [
-                require.cache[this_1.project.serviceModules[serviceName]]
-            ];
-            var checkMap = {};
-            var _loop_2 = function(dep) {
-                if (dep.filename in checkMap)
-                    return "continue";
-                checkMap[dep.filename] = true;
-                if (dep.filename.startsWith(this_1.project.buildDir))
-                    location = dep.filename.substr(this_1.project.buildDir.length);
-                else if (dep.filename.startsWith(this_1.project.directory))
-                    location = dep.filename.substr(this_1.project.directory.length);
-                else
-                    return "continue";
-                fs.ensureSymlinkSync(dep.filename, "" + packingDir + location, function (err) {
-                    if (err)
-                        console.log(err);
-                    else
-                        console.log(dep.filename + " \u2192 " + packingDir + location);
-                });
-                console.log(Object.keys(dep.children));
-                pendingList.push.apply(pendingList, dep.children);
-            };
-            for (var _i = 0, pendingList_1 = pendingList; _i < pendingList_1.length; _i++) {
-                var dep = pendingList_1[_i];
-                _loop_2(dep);
+        var entrySet = {};
+        for (var serviceName in this.project.serviceModules) {
+            var serviceFilename = this.project.serviceModules[serviceName];
+            entrySet[serviceName] = [serviceFilename];
+        }
+        var compiler = webpack({
+            entry: entrySet,
+            output: {
+                libraryTarget: this.project.tsc.compilerOptions.module,
+                path: this.project.packingDir,
+                filename: "[name]/[name].js",
+            },
+            module: {
+                loaders: []
             }
+        });
+        return new Promise(function (resolve, reject) {
+            compiler.run(function (err, stats) {
+                if (err)
+                    reject(err);
+                else
+                    resolve(stats);
+            });
+        });
+    };
+    Packager.prototype.zip = function () {
+        var _this = this;
+        console.log('Zipping services...');
+        fs.ensureDirSync(this.project.deploymentDir);
+        var promises = [];
+        var _loop_1 = function(serviceName) {
+            promises.push(new Promise(function (resolve, reject) {
+                var archive = archiver.create('zip', {});
+                var output = _this.project.deploymentDir + "/" + serviceName + ".zip";
+                var stream = fs.createWriteStream(output);
+                stream.on('close', function () { return resolve(output); });
+                archive.on('error', function (error) { return reject(error); });
+                archive.pipe(stream);
+                archive.directory(_this.project.packingDir + "/" + serviceName, '/', {});
+                archive.finalize();
+            }));
         };
-        var this_1 = this;
-        var location;
         for (var serviceName in this.project.serviceModules) {
             _loop_1(serviceName);
         }
-    };
-    Packager.prototype.packup = function (args) {
-        this.modularStructureReplication();
+        return Promise.all(promises);
     };
     __decorate([
         shell_1.Shell.command('packup'), 

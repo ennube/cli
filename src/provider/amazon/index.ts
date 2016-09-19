@@ -1,17 +1,23 @@
 import {Project, Shell} from '../../classes';
-import {http} from '@ennube/runtime';
+import {http, storage} from '@ennube/runtime';
+import {getStackName} from './common';
 
-import {pascalCase} from 'change-case';
-import * as _ from 'lodash';
+import {pascalCase, paramCase} from 'change-case';
+//import * as _ from 'lodash';
 import * as fs from 'fs-extra';
 import * as yaml from 'js-yaml';
+
 import * as aws from 'aws-sdk';
 
-const httpResponsecodes = {
-    200: 'Found',
-};
+import {mixin} from './common';
+import {Gateway} from './gateway';
+import {S3} from './s3';
 
-export class Amazon {//} extends Provider {
+@mixin(Gateway, S3)
+export class Amazon implements Gateway, S3 {
+
+    stage: string = 'development';
+    region: string = 'us-east-1';
 
     client : any;
 
@@ -20,15 +26,28 @@ export class Amazon {//} extends Provider {
     Parameters: Object = {};
     Mappings: Object = {};
     Conditions: Object = {};
-    Resources: Object = {};
+
+    Resources: {
+        [resourceId:string]: {
+            Type: string,
+            Properties: Object
+        }
+    } = { };
+
     Outputs: Object = {};
 
     constructor(public project:Project) {
-        project.ensureLoaded();
+
 
         this.client = new aws['CloudFormation']({
-            region: 'us-east-1'
+            region: this.region
         });
+
+        this.prepareTemplate();
+    }
+
+    prepareTemplate() {
+        this.project.ensureLoaded();
 
         this.Template = {
            AWSTemplateFormatVersion: "2010-09-09",
@@ -40,84 +59,40 @@ export class Amazon {//} extends Provider {
            Outputs: this.Outputs
         };
 
-        this.buildGateway()
+        this.prepareS3Template();
+        this.prepareGatewayTemplate();
+        // Guarda el template para crear y para actualizar el stack..
 
-
-    }
-
-    buildGateway() {
-        gatewayIterator((gateway, url, method, endpoint) => {
-            url = _.trim(url, '/');
-
-            // Ensure gateway
-            let gatewayId = getGatewayId(gateway);
-            if( !(gatewayId in this.Resources) )
-                this.Resources[gatewayId] = {
-                    Type: 'AWS::ApiGateway::RestApi',
-                    Properties: {
-                        Name: `${this.project.npm.name}-${gateway}`
-                    }
-                }
-            // Ensure URL RESOURCE
-            let urlParts = [];
-            let urlArgs = [];
-            let parentResourceId;
-
-            if(!!url)
-            for(let urlPart of url.split('/')) {
-/*
-                let argMatch = /\{([\-\w]+)\}/.exec(urlPart);
-                if( argMatch ) {
-                    urlPart = `{ARG${urlArgs.length}}`;
-                    urlArgs.push(argMatch[1]);
-                }
-*/
-                urlParts.push(urlPart)
-                let resourceId = getGatewayUrlId(gateway, urlParts);
-
-                if( !(resourceId in this.Resources) )
-                    this.Resources[resourceId] = {
-                        Type: 'AWS::ApiGateway::Resource',
-                        Properties: {
-                            RestApiId: ref(gatewayId),
-                            ParentId: parentResourceId?
-                                ref(parentResourceId):
-                                getAtt(gatewayId, 'RootResourceId'),
-                            PathPart: urlPart
-                        }
-                    }
-                parentResourceId = resourceId;
-            }
-
-            // CREATE METHOD
-            let methodId = getGatewayUrlMethodId(gateway, urlParts, method);
-
-            this.Resources[methodId] = {
-                Type: 'AWS::ApiGateway::Method',
-                Properties: {
-                    RestApiId: ref(gatewayId),
-                    ResourceId: parentResourceId?
-                        ref(parentResourceId):
-                        getAtt(gatewayId, 'RootResourceId'),
-                    HttpMethod: method.toUpperCase(),
-                    AuthorizationType: 'NONE',
-    //                AuthorizerId:
-                    RequestParameters: {},
-                    Integration: {
-                        Type: 'MOCK',
-                        IntegrationHttpMethod: method.toUpperCase(),
-                    },
-                }
-            }
-
-        });
         fs.writeFileSync('template.yaml', yaml.dump(this.Template));
     }
 
+    // S3 methods
+    prepareS3Template: () => void;
+    uploadDeploymentFiles: () => Promise<void>;
+
+    // Gateway methods
+    prepareGatewayTemplate: () => void;
+    prepareGatewayMOCKTemplate: () => void;
+    prepareGatewayHTTPTemplate: () => void;
+    prepareGatewayLambdaTemplate: () => void;
+
+    @Shell.command('upload')
+    upload(args) {
+        return this.uploadDeploymentFiles();
+    }
 
     @Shell.command('validate')
     validate(args) {
         this.send('validateTemplate', {
+            TemplateBody: JSON.stringify(this.Template)
+        })
+        .then((x) => console.log('OK'))
+        .catch((x) => console.log('ER', x));
+    }
+
+    @Shell.command('describe')
+    describe(args) {
+        this.send('describeStacks', {
             TemplateBody: JSON.stringify(this.Template)
         })
         .then((x) => console.log('OK'))
@@ -151,42 +126,4 @@ export class Amazon {//} extends Provider {
         });
     }
 
-}
-function getStackName(projectName: string, stage: string) {
-    return `${pascalCase(projectName)}-${pascalCase(stage)}`;
-}
-
-function ref(id:string) {
-    return { Ref: id };
-}
-
-function getAtt(id:string, attr:string){
-    return { "Fn::GetAtt": [id, attr] };
-}
-
-function getGatewayId(gateway:string) {
-    return `Gateway${pascalCase(gateway)}`;
-}
-
-function getGatewayUrlId(gateway:string, parts:string[]) {
-    return getGatewayId(gateway) + `URL` +
-        parts.map( (v) => pascalCase(_.trim(v, '{}')) ).join('SLASH') ;
-}
-
-function getGatewayUrlMethodId(gateway:string, parts:string[], method: string) {
-    return getGatewayUrlId(gateway, parts) + method.toUpperCase();
-}
-
-
-type GatewayIteratorCB = (gateway:string, method:string, url: string, endpoint: http.Endpoint) => void;
-
-function gatewayIterator( callback: GatewayIteratorCB ) {
-    for( let gatewayId in http.allGateways ) {
-        let gateway = http.allGateways[gatewayId];
-        for( let url in gateway.endpoints ) {
-            let urlMethods = gateway.endpoints[url];
-            for( let method in urlMethods )
-                callback(gatewayId, url, method, urlMethods[method]);
-        }
-    }
 }

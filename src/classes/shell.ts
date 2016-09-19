@@ -3,6 +3,7 @@ import * as yargs from 'yargs'
 import * as _ from 'lodash'
 
 import {Project} from './project';
+import {typeOf} from '@ennube/runtime';
 
 export interface ICommandServiceConstructor {
     /*
@@ -57,15 +58,18 @@ export class Shell implements ICommandService {
                     if( commandService === undefined)
                         commandService = new info.constructor(this.project);
 
-                    return new Promise((resolve, reject)=>{
-                        try {
-                            let result = commandService[info.methodName](args);
-                        }
-                        catch(e) {
-                            console.log(e);
-                        }
-                        resolve();
-                    });
+                    try {
+                        let result = commandService[info.methodName](args);
+
+                        
+
+                        if(typeOf(result) === Promise) result
+                            .then((x) => console.log('OK', x))
+                            .catch((x) => console.log('ER', x));
+                    }
+                    catch(e) {
+                        console.log(e);
+                    }
                 }
             );
         });
