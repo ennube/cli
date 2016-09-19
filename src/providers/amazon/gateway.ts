@@ -45,7 +45,6 @@ export class Gateway {
     prepareGatewayTemplate() {
         gatewayIterator((gateway, url, method, endpoint) => {
             url = _.trim(url, '/');
-
             // Ensure gateway
             let gatewayId = getGatewayId(gateway);
             if( !(gatewayId in this.Resources) )
@@ -56,19 +55,21 @@ export class Gateway {
                     }
                 }
             // Ensure URL RESOURCE
+            let requestParameters = {};
             let urlParts = [];
             let urlArgs = [];
             let parentResourceId;
 
             if(!!url)
             for(let urlPart of url.split('/')) {
-/*
+
                 let argMatch = /\{([\-\w]+)\}/.exec(urlPart);
                 if( argMatch ) {
-                    urlPart = `{ARG${urlArgs.length}}`;
-                    urlArgs.push(argMatch[1]);
+                    requestParameters[`method.request.path.argMatch[1]`] = true;
+                    //urlPart = `{ARG${urlArgs.length}}`;
+                    //urlArgs.push(argMatch[1]);
                 }
-*/
+
                 urlParts.push(urlPart)
                 let resourceId = getGatewayUrlId(gateway, urlParts);
 
@@ -99,26 +100,50 @@ export class Gateway {
                     HttpMethod: method.toUpperCase(),
                     AuthorizationType: 'NONE',
     //                AuthorizerId:
-                    RequestParameters: {},
+                    RequestParameters: requestParameters,
                     Integration: {
                         Type: 'MOCK',
                         IntegrationHttpMethod: method.toUpperCase(),
                     },
+                    MethodResponses: [
+                        {
+                            StatusCode : '200',
+                            ResponseModels : {'text/html': 'Empty'},
+                            ResponseParameters : {
+                                'method.response.header.SetCookie': false,
+                            },
+                        }
+
+                    ]
                 }
             }
 
         });
     }
 
-    prepareGatewayMOCKTemplate() {
+    prepareGatewayIntegrationTemplate() {
+        gatewayIterator((gateway, url, method, endpoint) => {
 
+            let methodId = getGatewayUrlMethodId(gateway,
+                _.trim(url, '/').split('/'), method);
+
+            // switch to interation type..
+            this.prepareGatewayLambdaTemplate();
+
+        });
     }
 
     prepareGatewayLambdaTemplate() {
 
     }
 
+
+    prepareGatewayMOCKTemplate() {
+
+    }
+
     prepareGatewayHTTPTemplate() {
 
     }
+
 }

@@ -1,56 +1,53 @@
 "use strict";
 var yargs = require('yargs');
 var _ = require('lodash');
-var runtime_1 = require('@ennube/runtime');
+var CommandService = (function () {
+    function CommandService(project) {
+        this.project = project;
+    }
+    return CommandService;
+}());
+exports.CommandService = CommandService;
+exports.allCommands = {};
+function command(description, builder) {
+    return function (servicePrototype, commandName, descriptor) {
+        if (typeof servicePrototype == 'function')
+            throw new Error((servicePrototype.name + "." + commandName + "():") +
+                "static commands are not permitted");
+        exports.allCommands[commandName] = {
+            serviceClass: servicePrototype.constructor,
+            description: description,
+            builder: builder
+        };
+    };
+}
+exports.command = command;
 var Shell = (function () {
     function Shell(project) {
         this.project = project;
-        this.commandServices = new Map;
+        this.commandServices = new Map();
         this.commandServices.set(Shell, this);
     }
-    Shell.command = function (command, description, builder) {
-        return function (prototype, methodName, descriptor) {
-            Shell.commands[command] = {
-                constructor: prototype.constructor,
-                methodName: methodName, descriptor: descriptor, description: description, builder: builder
-            };
-        };
+    Shell.prototype.getCommandService = function (serviceClass) {
+        var commandService = this.commandServices.get(serviceClass);
+        if (commandService === undefined)
+            this.commandServices.set(serviceClass, commandService = new serviceClass(this.project));
+        return commandService;
     };
     Shell.prototype.run = function () {
         var _this = this;
         var shell = this;
         yargs.usage('$0 <command>');
-        _.forOwn(Shell.commands, function (info, command) {
-            yargs.command(command, info.description, info.builder, function (args) {
-                var commandService = _this.commandServices.get(info.constructor);
-                if (commandService === undefined)
-                    commandService = new info.constructor(_this.project);
-                try {
-                    var result = commandService[info.methodName](args);
-                    if (runtime_1.typeOf(result) === Promise)
-                        result
-                            .then(function (x) { return console.log('OK', x); })
-                            .catch(function (x) { return console.log('ER', x); });
-                }
-                catch (e) {
-                    console.log(e);
-                }
+        _.forOwn(exports.allCommands, function (command, commandName) {
+            yargs.command(commandName, command.description, command.builder, function (args) {
+                var commandService = _this.getCommandService(command.serviceClass);
+                Promise.resolve()
+                    .then(function () { return commandService[commandName](args); })
+                    .catch(function (x) { return console.error('ER', x); });
             });
-        });
-        yargs
-            .fail(function (msg) {
-            var err = [];
-            for (var _i = 1; _i < arguments.length; _i++) {
-                err[_i - 1] = arguments[_i];
-            }
-            if (err[0])
-                throw err[0];
-            console.error(msg);
-            process.exit(1);
         });
         return yargs.help().argv;
     };
-    Shell.commands = {};
     return Shell;
 }());
 exports.Shell = Shell;

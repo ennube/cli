@@ -1,6 +1,6 @@
 import * as fs from 'fs-extra';
 //require('source-map-support').install();
-import {serviceClasses} from '@ennube/runtime';
+import {allServices} from '@ennube/runtime';
 
 import * as classes from '../classes';
 
@@ -9,7 +9,6 @@ import * as classes from '../classes';
 export class Project {
     npmFileName: string;
     tscFileName: string;
-//    stackFileName: string;
 
     mainModule: Object;
 
@@ -31,12 +30,10 @@ export class Project {
     } = {}
 
 
-//    index: any; // ..loaded module index..
 
     constructor(public directory:string) {
         this.npmFileName = `${directory}/package.json`;
         this.tscFileName = `${directory}/tsconfig.json`;
-//        this.stackFileName = `${directory}/ennube.json`;
 
         if( fs.existsSync(this.npmFileName) )
             this.npm = fs.readJSONSync(this.npmFileName);
@@ -48,11 +45,8 @@ export class Project {
         else
             throw new Error(`You must run ennube into a tsc inited directory`)
 
-/*
-        if( fs.existsSync(this.stackFileName) )
-            this.stack = fs.readJSONSync(this.stackFileName);
-        else
-            this.stack = {};*/
+        // TODO: ensure tsc compilerOptions...
+
     }
 
     get name() {
@@ -76,19 +70,19 @@ export class Project {
         return `${this.buildDir}/deployment`;
     }
 
-
 /*
-    private _builder: classes.Builder;
-    get builder(): classes.Builder {
-        let builder = this._builder;
-        if(!builder)
-            builder = this._builder = new classes.Builder(this);
-        return builder;
+    private _provider: classes.Provider;
+    get provider(): classes.Provider {
+        let provider = this._provider;
+        if( provider === undefined )
+            provider = this._provider = new classes.Provider(this);
+        return provider;
     }
 */
     ensureLoaded() {
         // ensure builded, require Builder here..
         if(!this.mainModule) {
+            console.log('Loading project...');
             // ... config process.env variables...
             this.mainModule = require(this.mainModuleFileName);
             // another checks here...
@@ -105,8 +99,8 @@ export class Project {
             if(!module.filename.startsWith(this.directory))
                 continue;
 
-            for(let serviceName in serviceClasses ) {
-                let serviceClass = serviceClasses[serviceName];
+            for(let serviceName in allServices ) {
+                let serviceClass = allServices[serviceName].serviceClass;
 
                 if( serviceName in module.exports &&
                     serviceClass === module.exports[serviceClass.name]) {
@@ -121,10 +115,4 @@ export class Project {
         }
     }
 
-/*
-    save() {
-//        fs.writeJSONSync(this.stackFileName, this.stack);
-        fs.writeJSONSync(this.npmFileName, this.npm);
-    }
-*/
 }

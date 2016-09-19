@@ -1,12 +1,14 @@
 "use strict";
+var __extends = (this && this.__extends) || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+};
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 var classes_1 = require('../../classes');
 var common_1 = require('./common');
@@ -14,10 +16,13 @@ var fs = require('fs-extra');
 var yaml = require('js-yaml');
 var aws = require('aws-sdk');
 var common_2 = require('./common');
-var gateway_1 = require('./gateway');
 var s3_1 = require('./s3');
-var Amazon = (function () {
+var gateway_1 = require('./gateway');
+var lambda_1 = require('./lambda');
+var Amazon = (function (_super) {
+    __extends(Amazon, _super);
     function Amazon(project) {
+        _super.call(this, project);
         this.project = project;
         this.stage = 'development';
         this.region = 'us-east-1';
@@ -45,7 +50,10 @@ var Amazon = (function () {
         };
         this.prepareS3Template();
         this.prepareGatewayTemplate();
-        fs.writeFileSync('template.yaml', yaml.dump(this.Template));
+        fs.writeFileSync('stack-creation.yaml', yaml.dump(this.Template));
+        this.prepareLambdaTemplate();
+        this.prepareGatewayIntegrationTemplate();
+        fs.writeFileSync('stack-update.yaml', yaml.dump(this.Template));
     };
     Amazon.prototype.upload = function (args) {
         return this.uploadDeploymentFiles();
@@ -83,34 +91,21 @@ var Amazon = (function () {
         });
     };
     __decorate([
-        classes_1.Shell.command('upload'), 
-        __metadata('design:type', Function), 
-        __metadata('design:paramtypes', [Object]), 
-        __metadata('design:returntype', void 0)
+        classes_1.command('upload')
     ], Amazon.prototype, "upload", null);
     __decorate([
-        classes_1.Shell.command('validate'), 
-        __metadata('design:type', Function), 
-        __metadata('design:paramtypes', [Object]), 
-        __metadata('design:returntype', void 0)
+        classes_1.command('validate')
     ], Amazon.prototype, "validate", null);
     __decorate([
-        classes_1.Shell.command('describe'), 
-        __metadata('design:type', Function), 
-        __metadata('design:paramtypes', [Object]), 
-        __metadata('design:returntype', void 0)
+        classes_1.command('describe')
     ], Amazon.prototype, "describe", null);
     __decorate([
-        classes_1.Shell.command('create'), 
-        __metadata('design:type', Function), 
-        __metadata('design:paramtypes', [Object]), 
-        __metadata('design:returntype', void 0)
+        classes_1.command('create')
     ], Amazon.prototype, "create", null);
     Amazon = __decorate([
-        common_2.mixin(gateway_1.Gateway, s3_1.S3), 
-        __metadata('design:paramtypes', [classes_1.Project])
+        common_2.mixin(s3_1.S3, gateway_1.Gateway, lambda_1.Lambda)
     ], Amazon);
     return Amazon;
-}());
+}(classes_1.Provider));
 exports.Amazon = Amazon;
 //# sourceMappingURL=index.js.map

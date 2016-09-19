@@ -1,9 +1,12 @@
 
 export * from './classes';
 
-import * as _provider from './provider';
+import * as _providers from './providers';
+export const providers = _providers;
 
-export const provider = _provider;
+import * as _commands from './commands';
+export const commands = _commands;
+
 
 //export * from './stack';
 //import * as _providers from './provider';

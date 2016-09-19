@@ -21,6 +21,7 @@
     "@types/js-yaml": "^3.5.27",
     "@types/lodash": "^4.14.34",
     "@types/node": "^6.0.38",
+    "@types/progress": "^1.1.27",
     "@types/webpack": "^1.12.34",
     "@types/yargs": "0.0.30",
     "typescript": "^1.8.10"
@@ -34,6 +35,7 @@
     "js-yaml": "^3.6.1",
     "json-typescript-mapper": "^1.0.4",
     "lodash": "^4.15.0",
+    "progress": "^1.1.8",
     "s3": "^4.4.0",
     "source-map-support": "^0.4.2",
     "webpack": "^1.13.2",

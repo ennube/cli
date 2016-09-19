@@ -5,84 +5,93 @@ import * as _ from 'lodash'
 import {Project} from './project';
 import {typeOf} from '@ennube/runtime';
 
-export interface ICommandServiceConstructor {
-    /*
-    abstract help()  ??
-    */
-    new (project: Project): ICommandService;
+export interface ICommandServiceClass {
+    new (project: Project): CommandService;
 }
 
-export interface ICommandService {
-
-}
-
-export class Shell implements ICommandService {
-
-    static commands : { [command:string]: {
-        constructor: ICommandServiceConstructor,
-        methodName: string,
-        descriptor: PropertyDescriptor,
-        description: string,
-        builder: { [optionName:string]: yargs.Options },
-    }} = {};
-
-
-    static command(command: string, description?:string, builder?: { [optionName:string]: yargs.Options }) {
-        return (prototype, methodName: string, descriptor: PropertyDescriptor) => {
-            Shell.commands[command] = {
-                 constructor: prototype.constructor,
-                 methodName, descriptor, description, builder
-             };
-        };
+export abstract class CommandService {
+    constructor(public project:Project) {
     }
+}
 
-    private commandServices: Map<any, Object>;
+export const allCommands: {
+    [command:string]: {
+        serviceClass: ICommandServiceClass,
+//            commandName: string,
+        description: string,
+        builder: {
+            [optionName:string]: yargs.Options
+        },
+    }
+} = {};
+
+
+export function command(description?:string, builder?) {
+    return (servicePrototype, commandName: string, descriptor: PropertyDescriptor) => {
+
+        if(typeof servicePrototype == 'function')
+            throw new Error(`${servicePrototype.name}.${commandName}():` +
+                            `static commands are not permitted`);
+
+        allCommands[commandName] = {
+             serviceClass: servicePrototype.constructor,
+//                 commandName,
+             description,
+             builder
+         };
+    };
+}
+
+
+export class Shell implements CommandService {
 
     constructor(public project: Project) {
-        this.commandServices = new Map;
         this.commandServices.set(Shell, this);
+    }
+
+    private commandServices = new Map<ICommandServiceClass, CommandService>();
+
+    getCommandService(serviceClass: ICommandServiceClass) {
+        let commandService = this.commandServices.get(serviceClass);
+        if( commandService === undefined)
+            this.commandServices.set(serviceClass,
+                commandService = new serviceClass(this.project));
+
+        return commandService;
     }
 
     run() {
         let shell = this;
         yargs.usage('$0 <command>');
 
-        _.forOwn(Shell.commands, (info, command) => {
-            yargs.command(
-                command,
-                info.description,
-                info.builder,
+        _.forOwn(allCommands, (command, commandName) => {
+            yargs.command(commandName, command.description, command.builder,
                 (args) => {
-
-                    var commandService = this.commandServices.get(info.constructor);
-                    if( commandService === undefined)
-                        commandService = new info.constructor(this.project);
-
-                    try {
-                        let result = commandService[info.methodName](args);
-
-                        
-
-                        if(typeOf(result) === Promise) result
-                            .then((x) => console.log('OK', x))
-                            .catch((x) => console.log('ER', x));
-                    }
-                    catch(e) {
-                        console.log(e);
-                    }
+                    var commandService = this.getCommandService(command.serviceClass)
+                    Promise.resolve()
+                    .then(() => commandService[commandName](args))
+                    .catch((x) => console.error('ER', x));
                 }
             );
         });
 
-        yargs
-        .fail((msg, ...err: any[]) => {
-          if (err[0]) throw err[0] // preserve stack
-          console.error(msg)
-          process.exit(1)
-        })
-
         return yargs.help().argv;
     }
+/*
+    @Shell.command('deploy')
+    deploy(args) {
+        let providerName = 'Amazon';
 
 
+        this.project.builder.build()
+        .then(() => this.project.packager.packup())
+        .then(() => {
+            let providerClass = require('../providers')[providerName];
+            let provider = new providerClass(this.project);
+
+//            provider.
+
+        })
+    }
+*/
 };

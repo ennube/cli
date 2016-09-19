@@ -60,6 +60,7 @@ var Project = (function () {
     });
     Project.prototype.ensureLoaded = function () {
         if (!this.mainModule) {
+            console.log('Loading project...');
             this.mainModule = require(this.mainModuleFileName);
             this.discoverServices();
         }
@@ -70,8 +71,8 @@ var Project = (function () {
             var module_1 = require.cache[moduleId];
             if (!module_1.filename.startsWith(this.directory))
                 continue;
-            for (var serviceName in runtime_1.serviceClasses) {
-                var serviceClass = runtime_1.serviceClasses[serviceName];
+            for (var serviceName in runtime_1.allServices) {
+                var serviceClass = runtime_1.allServices[serviceName].serviceClass;
                 if (serviceName in module_1.exports &&
                     serviceClass === module_1.exports[serviceClass.name]) {
                     console.log(("service " + serviceClass.name + " found in ") +

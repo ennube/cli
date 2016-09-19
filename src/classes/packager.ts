@@ -1,4 +1,4 @@
-import {Shell} from './shell';
+import {command} from './shell';
 import {Project} from './project';
 
 import * as fs from 'fs-extra';
@@ -10,19 +10,14 @@ export class Packager {
 
     }
 
-    //@Task.step('stepname')
-    @Shell.command('packup')
-    packup(args) {
-        //this.modularStructureReplication();
-
-        this.webpackServices().then(() => {
-            this.zip();
-        });
-
+    @command('packup')
+    packup(args?) {
+        return this.packupProjectSergments()
+        .then(() => this.zip());
     }
 
 
-    webpackServices() {
+    packupProjectSergments() {
         console.log('Packing services...');
         this.project.ensureLoaded();
 

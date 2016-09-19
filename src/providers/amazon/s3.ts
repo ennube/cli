@@ -2,21 +2,21 @@ import {Project} from '../../classes';
 import {storage} from '@ennube/runtime';
 import {pascalCase, paramCase} from 'change-case';
 
+import * as ProgressBar from 'progress';
+import * as chalk from 'chalk';
+
 import * as aws from 'aws-sdk';
-
-//import * as s3 from 's3';
-
-const s3 = require('s3'); // @types not available
+const s3 = require('s3');  // @types/s3 not available
 
 
-function getS3BucketId(project: Project, bucket: storage.Bucket, stage:string) {
+export function getS3BucketId(project: Project, bucket: storage.Bucket, stage:string) {
     if(bucket.staged === false)
         return `${pascalCase(project.name)}${pascalCase(bucket.name)}Storage`;
     else
         return `${pascalCase(project.name)}${pascalCase(bucket.name)}${pascalCase(stage)}Storage`;
 }
 
-function getS3BucketName(project:Project, bucket: storage.Bucket, stage:string) {
+export function getS3BucketName(project:Project, bucket: storage.Bucket, stage:string) {
     return paramCase(getS3BucketId(project, bucket, stage));
 }
 
@@ -27,7 +27,6 @@ export class S3 {
 
     project: Project;
     Resources: Object;
-
 
     prepareS3Template() {
         for(let bucketName in storage.allBuckets) {
@@ -60,20 +59,35 @@ export class S3 {
                 deleteRemoved: true,
                 s3Params: {
                     Bucket: getS3BucketName(this.project, deploymentBucket, this.stage),
-                    Prefix: `${(new Date()).toJSON()}/`,
+//                    Prefix: `${(new Date()).toJSON()}/`,
                 },
             };
 
-            var uploader = client.uploadDir(params);
-            uploader.on('error', function(err) {
-                console.error("unable to sync:", err.stack);
-            });
-            uploader.on('progress', function() {
-                console.log("progress", uploader.progressAmount, uploader.progressTotal);
-            });
-            uploader.on('end', function() {
+            let progressBar = undefined;
+            let lastAmount = 0;
+            let uploader = client.uploadDir(params)
+            .on('progress', function() {
+                if( uploader.progressTotal == 0)
+                    return;
+
+                if( progressBar === undefined )
+                    progressBar = new ProgressBar('Syncing deployment bucket [:bar] :percent :etas', {
+                            incomplete: chalk.grey('\u2588'),
+                            complete: chalk.white('\u2588'),
+                            total: uploader.progressTotal,
+                            width: process.stdout['columns'] | 40,
+                    });
+
+                progressBar.tick(uploader.progressAmount-lastAmount);
+                lastAmount = uploader.progressAmount;
+            })
+            .on('end', function() {
                 console.log("done uploading");
                 resolve()
+            })
+            .on('error', function(err) {
+                console.error("unable to sync:", err);
+                reject(err);
             });
         });
     }

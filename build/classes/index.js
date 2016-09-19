@@ -6,4 +6,5 @@ __export(require('./project'));
 __export(require('./shell'));
 __export(require('./builder'));
 __export(require('./packager'));
+__export(require('./provider'));
 //# sourceMappingURL=index.js.map

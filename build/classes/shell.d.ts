@@ -1,28 +1,27 @@
 /// <reference types="yargs" />
 import * as yargs from 'yargs';
 import { Project } from './project';
-export interface ICommandServiceConstructor {
-    new (project: Project): ICommandService;
+export interface ICommandServiceClass {
+    new (project: Project): CommandService;
 }
-export interface ICommandService {
-}
-export declare class Shell implements ICommandService {
+export declare abstract class CommandService {
     project: Project;
-    static commands: {
-        [command: string]: {
-            constructor: ICommandServiceConstructor;
-            methodName: string;
-            descriptor: PropertyDescriptor;
-            description: string;
-            builder: {
-                [optionName: string]: yargs.Options;
-            };
+    constructor(project: Project);
+}
+export declare const allCommands: {
+    [command: string]: {
+        serviceClass: ICommandServiceClass;
+        description: string;
+        builder: {
+            [optionName: string]: yargs.Options;
         };
     };
-    static command(command: string, description?: string, builder?: {
-        [optionName: string]: yargs.Options;
-    }): (prototype: any, methodName: string, descriptor: PropertyDescriptor) => void;
-    private commandServices;
+};
+export declare function command(description?: string, builder?: any): (servicePrototype: any, commandName: string, descriptor: PropertyDescriptor) => void;
+export declare class Shell implements CommandService {
+    project: Project;
     constructor(project: Project);
+    private commandServices;
+    getCommandService(serviceClass: ICommandServiceClass): CommandService;
     run(): any;
 }

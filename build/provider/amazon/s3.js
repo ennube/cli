@@ -9,9 +9,11 @@ function getS3BucketId(project, bucket, stage) {
     else
         return "" + change_case_1.pascalCase(project.name) + change_case_1.pascalCase(bucket.name) + change_case_1.pascalCase(stage) + "Storage";
 }
+exports.getS3BucketId = getS3BucketId;
 function getS3BucketName(project, bucket, stage) {
     return change_case_1.paramCase(getS3BucketId(project, bucket, stage));
 }
+exports.getS3BucketName = getS3BucketName;
 var S3 = (function () {
     function S3() {
     }
@@ -41,7 +43,6 @@ var S3 = (function () {
                 deleteRemoved: true,
                 s3Params: {
                     Bucket: getS3BucketName(_this.project, deploymentBucket, _this.stage),
-                    Prefix: (new Date()).toJSON() + "/",
                 },
             };
             var uploader = client.uploadDir(params);
