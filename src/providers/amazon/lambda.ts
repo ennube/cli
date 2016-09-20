@@ -2,9 +2,10 @@ import {Project} from '../../classes';
 import {ref, getAtt, getStackName} from './common';
 import {getS3BucketId} from './s3';
 import {allServices, storage} from '@ennube/runtime';
+import {pascalCase} from 'change-case';
 
 function getLambdaId(serviceName: string, stage: string) {
-    return `${serviceName}${stage}Lambda`;
+    return `${serviceName}${pascalCase(stage)}Lambda`;
 }
 
 export class Lambda {

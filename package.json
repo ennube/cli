@@ -33,7 +33,6 @@
     "change-case": "^3.0.0",
     "fs-extra": "^0.30.0",
     "js-yaml": "^3.6.1",
-    "json-typescript-mapper": "^1.0.4",
     "lodash": "^4.15.0",
     "progress": "^1.1.8",
     "s3": "^4.4.0",

@@ -1,16 +1,16 @@
-# Ennube Shell
+# Ennube
+**Currently in 0.1-alpha status.**
+A service-oriented architecture for the development of cloud based web
+applications. Ennube integrates directly with Typescript and Amazon Web
+Services, creating a bridge between language and platform.
 
-**: The project is currently in 0.1-alpha status. :**
+## Integrated services and features
 
-Ennube shell is a CLI toolkit for automated Deployment of cloud based AWS
-web applications.
-
-## Deployment workflow
-
-- [x] Builds the service project througth Typescript compiler.
-- [x] Load project main module.
-- [x] Webpack the several project services (project segmentation).
-- [x] Upload project packages to S3 deploy bucket.
-- [ ] Build gateway integration.
-- [x] Update cloud formation stack.
-- [ ] Verify stack update success.
+- [x] The application code is segmented in microservices to be deployed as
+    lambda functions, all automatically.
+- [x] Your application can declare http endpoints using Typescript decorators,
+    these endpoints will be automatically represented in the service gateway
+    api.
+- [x] Storage buckets used in your application code will be added to your cloud
+    stack automatically, the application can access the resource through the
+    ennube runtime layer.

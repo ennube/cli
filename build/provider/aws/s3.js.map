@@ -1,1 +1,0 @@
-{"version":3,"file":"s3.js","sourceRoot":"","sources":["../../../src/provider/aws/s3.ts"],"names":[],"mappings":";;;;;;;;;;;;;;;AAAA,uBAAuB,UAAU,CAAC,CAAA;AAClC,oBAAqB,aAAa,CAAC,CAAA;AAInC;IAA8B,4BAAQ;IAAtC;QAA8B,8BAAQ;IAEtC,CAAC;IADU,aAAI,GAAG,iBAAiB,CAAC;IAFpC;QAAC,YAAM,CAAC,KAAK,EAAE;;gBAAA;IAGf,eAAC;AAAD,CAAC,AAFD,CAA8B,iBAAQ,GAErC;AAFY,gBAAQ,WAEpB,CAAA"}
