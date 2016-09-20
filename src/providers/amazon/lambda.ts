@@ -1,10 +1,10 @@
 import {Project} from '../../classes';
-import {ref, getAtt, getStackName} from './common';
+import {ref, getAtt, fn, getStackName} from './common';
 import {getS3BucketId} from './s3';
 import {allServices, storage} from '@ennube/runtime';
 import {pascalCase} from 'change-case';
 
-function getLambdaId(serviceName: string, stage: string) {
+export function getLambdaId(serviceName: string, stage: string) {
     return `${serviceName}${pascalCase(stage)}Lambda`;
 }
 
@@ -74,10 +74,19 @@ export class Lambda {
                     Role: getAtt('ServiceRole', 'Arn'),
                     Code: {
                         S3Bucket: ref(getS3BucketId(this.project, deploymentBucket, this.stage)),
-                        S3Key: `${serviceName}.zip`
+                        S3Key: `${this.project.deployHash}/${serviceName}.zip`
                     },
                 }
             };
+            // permiso para Gateway
+            this.Resources[lambdaId+'GatewayPermission'] = {
+                Type: "AWS::Lambda::Permission",
+                Properties: {
+                    FunctionName: fn.getAtt(lambdaId, 'Arn'),
+                    Action: "lambda:InvokeFunction",
+                    Principal: "apigateway.amazonaws.com"
+                }
+            }
         }
     }
 }

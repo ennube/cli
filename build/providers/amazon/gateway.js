@@ -1,6 +1,7 @@
 "use strict";
 var runtime_1 = require('@ennube/runtime');
 var common_1 = require('./common');
+var lambda_1 = require('./lambda');
 var change_case_1 = require('change-case');
 var _ = require('lodash');
 function getGatewayId(gateway) {
@@ -22,6 +23,58 @@ function gatewayIterator(callback) {
                 callback(gatewayId, url, method, urlMethods[method]);
         }
     }
+}
+function methodResponse(statusCode) {
+    var responseModels = {
+        'text/html': 'Empty',
+        'application/json': 'Empty',
+    };
+    var responseParameters = {
+        'method.response.header.location': false,
+    };
+    if (statusCode >= 300 && statusCode < 400)
+        Object.assign(responseParameters, {
+            'method.response.header.location': true,
+        });
+    return {
+        StatusCode: statusCode,
+        ResponseModels: responseModels,
+        ResponseParameters: responseParameters
+    };
+}
+function integrationResponse(statusCode) {
+    var selectionPattern = undefined;
+    var responseParameters = {};
+    var responseTemplates = {};
+    if (statusCode == 200) {
+        responseTemplates = {
+            'text/http': "#set($inputRoot = $input.path('$'))\n$inputRoot.Content",
+            'application/json': "#set($inputRoot = $input.path('$'))\n$inputRoot.Content",
+        };
+    }
+    else if (statusCode >= 300 && statusCode < 400) {
+        selectionPattern = 'http.*';
+        Object.assign(responseParameters, {
+            'method.response.header.location': "integration.response.body.errorMessage",
+        });
+        Object.assign(responseTemplates, {
+            'text/html': "",
+            'application/json': "",
+        });
+    }
+    else if (statusCode >= 400 && statusCode <= 500) {
+        selectionPattern = "\\[" + statusCode + ".*";
+        responseTemplates = {
+            'text/http': "#set($_body = $util.parseJson($input.path('$.errorMessage'))[1])\n$util.base64Decode($_body)",
+            'application/json': "#set($_body = $util.parseJson($input.path('$.errorMessage'))[1])\n$util.base64Decode($_body)",
+        };
+    }
+    return {
+        StatusCode: statusCode,
+        SelectionPattern: selectionPattern,
+        ResponseParameters: responseParameters,
+        ResponseTemplates: responseTemplates,
+    };
 }
 var Gateway = (function () {
     function Gateway() {
@@ -55,10 +108,10 @@ var Gateway = (function () {
                         _this.Resources[resourceId] = {
                             Type: 'AWS::ApiGateway::Resource',
                             Properties: {
-                                RestApiId: common_1.ref(gatewayId),
+                                RestApiId: common_1.fn.ref(gatewayId),
                                 ParentId: parentResourceId ?
-                                    common_1.ref(parentResourceId) :
-                                    common_1.getAtt(gatewayId, 'RootResourceId'),
+                                    common_1.fn.ref(parentResourceId) :
+                                    common_1.fn.getAtt(gatewayId, 'RootResourceId'),
                                 PathPart: urlPart
                             }
                         };
@@ -68,26 +121,34 @@ var Gateway = (function () {
             _this.Resources[methodId] = {
                 Type: 'AWS::ApiGateway::Method',
                 Properties: {
-                    RestApiId: common_1.ref(gatewayId),
+                    RestApiId: common_1.fn.ref(gatewayId),
                     ResourceId: parentResourceId ?
-                        common_1.ref(parentResourceId) :
-                        common_1.getAtt(gatewayId, 'RootResourceId'),
+                        common_1.fn.ref(parentResourceId) :
+                        common_1.fn.getAtt(gatewayId, 'RootResourceId'),
                     HttpMethod: method.toUpperCase(),
                     AuthorizationType: 'NONE',
                     RequestParameters: requestParameters,
                     Integration: {
                         Type: 'MOCK',
                         IntegrationHttpMethod: method.toUpperCase(),
+                        IntegrationResponses: [
+                            integrationResponse(200),
+                            integrationResponse(301),
+                            integrationResponse(400),
+                            integrationResponse(401),
+                            integrationResponse(403),
+                            integrationResponse(404),
+                            integrationResponse(500),
+                        ]
                     },
                     MethodResponses: [
-                        {
-                            StatusCode: '200',
-                            ResponseModels: { 'text/html': 'Empty' },
-                            ResponseParameters: {
-                                'method.response.header.SetCookie': false,
-                            },
-                        }
-                    ]
+                        methodResponse(200),
+                        methodResponse(301),
+                        methodResponse(401),
+                        methodResponse(403),
+                        methodResponse(404),
+                        methodResponse(500),
+                    ],
                 }
             };
         });
@@ -96,10 +157,25 @@ var Gateway = (function () {
         var _this = this;
         gatewayIterator(function (gateway, url, method, endpoint) {
             var methodId = getGatewayUrlMethodId(gateway, _.trim(url, '/').split('/'), method);
-            _this.prepareGatewayLambdaTemplate();
+            var resource = _this.Resources[methodId];
+            _this.prepareGatewayLambdaTemplate(resource.Properties.Integration, endpoint);
         });
+        for (var gateway in runtime_1.http.allGateways) {
+            var gatewayId = getGatewayId(gateway);
+            var deploymentId = "" + gatewayId + change_case_1.pascalCase(this.stage) + "Deployment";
+            this.Resources[deploymentId] = {
+                Type: 'AWS::ApiGateway::Deployment',
+                Properties: {
+                    RestApiId: common_1.fn.ref(gatewayId),
+                    StageName: change_case_1.pascalCase(this.stage),
+                }
+            };
+        }
     };
-    Gateway.prototype.prepareGatewayLambdaTemplate = function () {
+    Gateway.prototype.prepareGatewayLambdaTemplate = function (integration, endpoint) {
+        integration.Type = 'AWS';
+        integration.IntegrationHttpMethod = 'POST';
+        integration.Uri = common_1.fn.join('', 'arn:aws:apigateway:', common_1.fn.ref('AWS::Region'), ':lambda:path/2015-03-31/functions/', common_1.fn.getAtt(lambda_1.getLambdaId(endpoint.service.serviceClass.name, this.stage), 'Arn'), '/invocations');
     };
     Gateway.prototype.prepareGatewayMOCKTemplate = function () {
     };

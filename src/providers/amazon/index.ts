@@ -160,7 +160,7 @@ export class Amazon extends Provider implements Gateway, S3, Lambda {
                 StackName: stackName,
             })))
             .catch((x) => reject(x));
-
+            
         }))
 
     }

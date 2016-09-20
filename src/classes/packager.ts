@@ -32,6 +32,24 @@ export class Packager {
 
         let compiler = webpack({
             entry: entrySet,
+            target: 'node',
+            devtool: 'source-map', // debug
+            externals: [
+                'aws-sdk'
+            ],
+            plugins: [
+                new webpack.optimize.DedupePlugin(),
+                //new webpack.optimize.OccurrenceOrderPlugin(true),
+                //new webpack.optimize.OccurrenceOrderPlugin(true),
+/*                new webpack.optimize.UglifyJsPlugin({
+                    compress: {
+                        unused: true,
+                        dead_code: true,
+                        warnings: false,
+                        drop_debugger: true
+                    }
+                })*/
+            ],
             output: {
                 libraryTarget: this.project.tsc.compilerOptions.module, // TODO: desde project.tsc
                 path: this.project.packingDir,

@@ -2,9 +2,11 @@
 var common_1 = require('./common');
 var s3_1 = require('./s3');
 var runtime_1 = require('@ennube/runtime');
+var change_case_1 = require('change-case');
 function getLambdaId(serviceName, stage) {
-    return "" + serviceName + stage + "Lambda";
+    return "" + serviceName + change_case_1.pascalCase(stage) + "Lambda";
 }
+exports.getLambdaId = getLambdaId;
 var Lambda = (function () {
     function Lambda() {
     }
@@ -61,8 +63,16 @@ var Lambda = (function () {
                     Role: common_1.getAtt('ServiceRole', 'Arn'),
                     Code: {
                         S3Bucket: common_1.ref(s3_1.getS3BucketId(this.project, deploymentBucket, this.stage)),
-                        S3Key: serviceName + ".zip"
+                        S3Key: this.project.deployHash + "/" + serviceName + ".zip"
                     },
+                }
+            };
+            this.Resources[lambdaId + 'GatewayPermission'] = {
+                Type: "AWS::Lambda::Permission",
+                Properties: {
+                    FunctionName: common_1.fn.getAtt(lambdaId, 'Arn'),
+                    Action: "lambda:InvokeFunction",
+                    Principal: "apigateway.amazonaws.com"
                 }
             };
         }

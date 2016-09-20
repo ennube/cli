@@ -1,16 +1,17 @@
-/// <reference types="core-js" />
 import { Project } from '../../classes';
+import { http } from '@ennube/runtime';
 export declare class Gateway {
     project: Project;
+    stage: string;
     Resources: {
         [resourceId: string]: {
             Type: string;
-            Properties: Object;
+            Properties: any;
         };
     };
     prepareGatewayTemplate(): void;
     prepareGatewayIntegrationTemplate(): void;
-    prepareGatewayLambdaTemplate(): void;
+    prepareGatewayLambdaTemplate(integration: any, endpoint: http.Endpoint): void;
     prepareGatewayMOCKTemplate(): void;
     prepareGatewayHTTPTemplate(): void;
 }

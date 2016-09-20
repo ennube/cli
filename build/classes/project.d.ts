@@ -1,6 +1,12 @@
 /// <reference types="core-js" />
+export declare type TemplateCollection = {
+    [mimeType: string]: {
+        [templateId: string]: string;
+    };
+};
 export declare class Project {
     directory: string;
+    deployHash: string;
     npmFileName: string;
     tscFileName: string;
     mainModule: Object;
@@ -17,6 +23,10 @@ export declare class Project {
     };
     serviceModules: {
         [name: string]: string;
+    };
+    templates: {
+        request: TemplateCollection;
+        response: TemplateCollection;
     };
     constructor(directory: string);
     readonly name: string;

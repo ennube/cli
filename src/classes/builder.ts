@@ -1,8 +1,8 @@
 import {command} from './shell';
-import {Project} from './project';
+import {Project, TemplateCollection} from './project';
 import * as webpack from 'webpack';
 import * as child_process from 'child_process';
-import * as fs from 'fs-extra';
+import * as fsx from 'fs-extra';
 
 export class Builder {
 
@@ -20,6 +20,38 @@ export class Builder {
                 else
                     resolve(stdout);
             })
+        });
+    }
+
+    @command()
+    buildTemplates() {
+        console.log('Collecting templates...');
+        return this.collectTemplates(
+            `${__dirname}/../../request-templates`,
+            this.project.templates.request);
+
+    }
+
+    collectTemplates(directory:string, collection: TemplateCollection){
+        directory = fsx.realpathSync(directory);
+
+        return new Promise((resolve, reject) => {
+            fsx['walk'](directory)
+            .on('data', function (file) {
+                let match = /\/(\w+\/\w+)\/(.*)\.vtl/.exec(
+                    file.path.substr(directory.length));
+                if( match ) {
+                    console.log(`Template found ${match[0]}`);
+                    if( collection[match[1]] === undefined )
+                        collection[match[1]] = {}
+                    collection[match[1]][match[2]] = fsx.readFileSync(file.path, {encoding:'utf8'});
+                }
+
+            })
+            .on('end', function () {
+                resolve();
+            })
+
         });
     }
 

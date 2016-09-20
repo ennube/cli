@@ -28,6 +28,14 @@ var Packager = (function () {
         }
         var compiler = webpack({
             entry: entrySet,
+            target: 'node',
+            devtool: 'source-map',
+            externals: [
+                'aws-sdk'
+            ],
+            plugins: [
+                new webpack.optimize.DedupePlugin(),
+            ],
             output: {
                 libraryTarget: this.project.tsc.compilerOptions.module,
                 path: this.project.packingDir,

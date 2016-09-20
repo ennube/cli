@@ -1,8 +1,10 @@
 import {Project} from '../../classes';
 import {http} from '@ennube/runtime';
-import {ref, getAtt} from './common';
+import {fn} from './common';
+import {getLambdaId} from './lambda';
 import {pascalCase} from 'change-case';
 import * as _ from 'lodash';
+
 
 function getGatewayId(gateway:string) {
     return `Gateway${pascalCase(gateway)}`;
@@ -31,14 +33,89 @@ function gatewayIterator( callback: GatewayIteratorCB ) {
 }
 
 
+
+    // GET defaults to 200
+    // POST defaults to 201 created
+    // PUT defaults to 204 with location
+    // DELETE defaults to 204 with location
+
+    // add 300 responses
+        // solo puede tener una respuesta redirect..
+
+    // add 4xx responses
+    // add 5xx responses
+
+    // 201 CREATED, should include a location header.
+
+function methodResponse(statusCode: Number) {
+    let responseModels = {
+        'text/html': 'Empty',
+        'application/json': 'Empty',
+    };
+
+    let responseParameters = {
+        'method.response.header.location': false,
+    };
+
+    if( statusCode >= 300 && statusCode < 400 ) // redirections
+        Object.assign(responseParameters, {
+            'method.response.header.location': true,
+        });
+
+    return {
+        StatusCode : statusCode,
+        ResponseModels : responseModels,
+        ResponseParameters : responseParameters
+    };
+}
+function integrationResponse(statusCode:Number) {
+
+    let selectionPattern = undefined;
+    let responseParameters = {}
+    let responseTemplates = {};
+
+    if( statusCode == 200 ) {
+        responseTemplates = {
+            'text/http': `#set($inputRoot = $input.path('$'))\n$inputRoot.content`,
+            'application/json': `#set($inputRoot = $input.path('$'))\n$inputRoot.content`,
+        }
+    }
+    else if( statusCode >= 300 && statusCode < 400 ) {
+        selectionPattern = 'http.*';
+        Object.assign(responseParameters, {
+            'method.response.header.location' : "integration.response.body.errorMessage",
+        });
+
+        Object.assign(responseTemplates, {
+            'text/html' : "",
+            'application/json' : "",
+        });
+    }
+    else if( statusCode >= 400 && statusCode <= 500 ) {
+        selectionPattern = `\\[${statusCode}.*`;
+        responseTemplates = {
+            'text/http': `#set($_body = $util.parseJson($input.path('$.errorMessage'))[1])\n$_body.content`,
+            'application/json': `#set($_body = $util.parseJson($input.path('$.errorMessage'))[1])\n$_body.content`,
+        }
+    }
+
+    return {
+        StatusCode: statusCode,
+        SelectionPattern: selectionPattern,
+        ResponseParameters: responseParameters,
+        ResponseTemplates: responseTemplates,
+    };
+}
+
 export class Gateway {
 
     project: Project;
+    stage: string;
 
     Resources: {
         [resourceId:string]: {
             Type: string,
-            Properties: Object
+            Properties: any
         }
     };
 
@@ -65,9 +142,7 @@ export class Gateway {
 
                 let argMatch = /\{([\-\w]+)\}/.exec(urlPart);
                 if( argMatch ) {
-                    requestParameters[`method.request.path.argMatch[1]`] = true;
-                    //urlPart = `{ARG${urlArgs.length}}`;
-                    //urlArgs.push(argMatch[1]);
+                    requestParameters[`method.request.path.${argMatch[1]}`] = true;
                 }
 
                 urlParts.push(urlPart)
@@ -77,10 +152,10 @@ export class Gateway {
                     this.Resources[resourceId] = {
                         Type: 'AWS::ApiGateway::Resource',
                         Properties: {
-                            RestApiId: ref(gatewayId),
+                            RestApiId: fn.ref(gatewayId),
                             ParentId: parentResourceId?
-                                ref(parentResourceId):
-                                getAtt(gatewayId, 'RootResourceId'),
+                                fn.ref(parentResourceId):
+                                fn.getAtt(gatewayId, 'RootResourceId'),
                             PathPart: urlPart
                         }
                     }
@@ -90,13 +165,16 @@ export class Gateway {
             // CREATE METHOD
             let methodId = getGatewayUrlMethodId(gateway, urlParts, method);
 
+
+
+            //[200, 201, 301, 400, 401, 403, 404, 500]
             this.Resources[methodId] = {
                 Type: 'AWS::ApiGateway::Method',
                 Properties: {
-                    RestApiId: ref(gatewayId),
+                    RestApiId: fn.ref(gatewayId),
                     ResourceId: parentResourceId?
-                        ref(parentResourceId):
-                        getAtt(gatewayId, 'RootResourceId'),
+                        fn.ref(parentResourceId):
+                        fn.getAtt(gatewayId, 'RootResourceId'),
                     HttpMethod: method.toUpperCase(),
                     AuthorizationType: 'NONE',
     //                AuthorizerId:
@@ -104,19 +182,29 @@ export class Gateway {
                     Integration: {
                         Type: 'MOCK',
                         IntegrationHttpMethod: method.toUpperCase(),
+                        IntegrationResponses: [
+                            integrationResponse(200),
+                            integrationResponse(301),
+                            integrationResponse(400),
+                            integrationResponse(401),
+                            integrationResponse(403),
+                            integrationResponse(404),
+                            integrationResponse(500),
+                        ]
                     },
                     MethodResponses: [
-                        {
-                            StatusCode : '200',
-                            ResponseModels : {'text/html': 'Empty'},
-                            ResponseParameters : {
-                                'method.response.header.SetCookie': false,
-                            },
-                        }
-
-                    ]
+                        methodResponse(200),
+                        methodResponse(301),
+                        methodResponse(400),
+                        methodResponse(401),
+                        methodResponse(403),
+                        methodResponse(404),
+                        methodResponse(500),
+                    ],
+                    //PassthroughBehavior: 'Never'
                 }
             }
+
 
         });
     }
@@ -127,13 +215,42 @@ export class Gateway {
             let methodId = getGatewayUrlMethodId(gateway,
                 _.trim(url, '/').split('/'), method);
 
-            // switch to interation type..
-            this.prepareGatewayLambdaTemplate();
+            let resource = this.Resources[methodId];
 
+            // switch to interation type..
+            this.prepareGatewayLambdaTemplate(
+                resource.Properties.Integration,
+                endpoint
+            );
         });
+
+        //for
+
+        for( let gateway in http.allGateways ) {
+            let gatewayId = getGatewayId(gateway);
+            let deploymentId = `${gatewayId}${pascalCase(this.stage)}Deployment`;
+            this.Resources[deploymentId] = {
+                Type: 'AWS::ApiGateway::Deployment',
+                Properties: {
+                    RestApiId: fn.ref(gatewayId),
+                    StageName: pascalCase(this.stage),
+                }
+            };
+        }
+
     }
 
-    prepareGatewayLambdaTemplate() {
+    prepareGatewayLambdaTemplate(integration: any, endpoint: http.Endpoint) {
+        integration.Type = 'AWS';
+        integration.IntegrationHttpMethod = 'POST';
+        // TODO: Generar esto en lambda.ts
+        integration.Uri = fn.join('',
+            'arn:aws:apigateway:',
+            fn.ref('AWS::Region'),
+            ':lambda:path/2015-03-31/functions/',
+            fn.getAtt(getLambdaId(endpoint.service.serviceClass.name, this.stage), 'Arn'),
+            '/invocations'
+        )
 
     }
 
@@ -147,3 +264,7 @@ export class Gateway {
     }
 
 }
+/*
+Protocolo de retorno,
+
+*/

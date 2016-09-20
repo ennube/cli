@@ -59,7 +59,7 @@ export class S3 {
                 deleteRemoved: true,
                 s3Params: {
                     Bucket: getS3BucketName(this.project, deploymentBucket, this.stage),
-//                    Prefix: `${(new Date()).toJSON()}/`,
+                    Prefix: `${this.project.deployHash}/`,
                 },
             };
 
@@ -82,6 +82,7 @@ export class S3 {
                 lastAmount = uploader.progressAmount;
             })
             .on('end', function() {
+                
                 console.log("done uploading");
                 resolve()
             })

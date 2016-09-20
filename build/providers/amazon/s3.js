@@ -45,6 +45,7 @@ var S3 = (function () {
                 deleteRemoved: true,
                 s3Params: {
                     Bucket: getS3BucketName(_this.project, deploymentBucket, _this.stage),
+                    Prefix: _this.project.deployHash + "/",
                 },
             };
             var progressBar = undefined;

@@ -7,6 +7,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 };
 var shell_1 = require('./shell');
 var child_process = require('child_process');
+var fsx = require('fs-extra');
 var Builder = (function () {
     function Builder(project) {
         this.project = project;
@@ -22,9 +23,34 @@ var Builder = (function () {
             });
         });
     };
+    Builder.prototype.buildTemplates = function () {
+        console.log('Collecting templates...');
+        return this.collectTemplates(__dirname + "/../../request-templates", this.project.templates.request);
+    };
+    Builder.prototype.collectTemplates = function (directory, collection) {
+        directory = fsx.realpathSync(directory);
+        return new Promise(function (resolve, reject) {
+            fsx['walk'](directory)
+                .on('data', function (file) {
+                var match = /\/(\w+\/\w+)\/(.*)\.vtl/.exec(file.path.substr(directory.length));
+                if (match) {
+                    console.log("Template found " + match[0]);
+                    if (collection[match[1]] === undefined)
+                        collection[match[1]] = {};
+                    collection[match[1]][match[2]] = fsx.readFileSync(file.path, { encoding: 'utf8' });
+                }
+            })
+                .on('end', function () {
+                resolve();
+            });
+        });
+    };
     __decorate([
         shell_1.command()
     ], Builder.prototype, "build", null);
+    __decorate([
+        shell_1.command()
+    ], Builder.prototype, "buildTemplates", null);
     return Builder;
 }());
 exports.Builder = Builder;

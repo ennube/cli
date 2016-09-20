@@ -4,9 +4,14 @@ import {allServices} from '@ennube/runtime';
 
 import * as classes from '../classes';
 
-
+export type TemplateCollection = {
+    [mimeType:string]: {
+        [templateId:string]: string
+    }
+};
 
 export class Project {
+    deployHash: string;
     npmFileName: string;
     tscFileName: string;
 
@@ -27,11 +32,18 @@ export class Project {
 
     serviceModules: {
         [name:string]: string
-    } = {}
+    } = {};
 
-
+    templates: {
+        request: TemplateCollection,
+        response: TemplateCollection
+    } = {
+        request: {},
+        response: {}
+    };
 
     constructor(public directory:string) {
+        this.deployHash = (new Date()).toJSON();
         this.npmFileName = `${directory}/package.json`;
         this.tscFileName = `${directory}/tsconfig.json`;
 

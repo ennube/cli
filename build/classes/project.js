@@ -5,6 +5,11 @@ var Project = (function () {
     function Project(directory) {
         this.directory = directory;
         this.serviceModules = {};
+        this.templates = {
+            request: {},
+            response: {}
+        };
+        this.deployHash = (new Date()).toJSON();
         this.npmFileName = directory + "/package.json";
         this.tscFileName = directory + "/tsconfig.json";
         if (fs.existsSync(this.npmFileName))

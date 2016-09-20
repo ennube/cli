@@ -1,5 +1,6 @@
 /// <reference types="core-js" />
 import { Project } from '../../classes';
+export declare function getLambdaId(serviceName: string, stage: string): string;
 export declare class Lambda {
     region: string;
     stage: string;
