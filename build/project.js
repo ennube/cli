@@ -13,7 +13,6 @@ var runtime_1 = require('@ennube/runtime');
 var fs = require('fs-extra');
 var Project = (function () {
     function Project(shell) {
-        this.shell = shell;
         this.serviceModules = {};
         this.templates = {
             request: {},
@@ -90,19 +89,23 @@ var Project = (function () {
             var module_1 = require.cache[moduleId];
             if (!module_1.filename.startsWith(this.directory))
                 continue;
-            for (var serviceName in runtime_1.allServices) {
-                var serviceClass = runtime_1.allServices[serviceName].serviceClass;
+            for (var serviceName in runtime_1.allServiceDescriptors) {
+                var serviceClass = runtime_1.allServiceDescriptors[serviceName].serviceClass;
                 if (serviceName in module_1.exports &&
                     serviceClass === module_1.exports[serviceClass.name]) {
                     console.log(("service " + serviceClass.name + " found in ") +
                         module_1.filename.substr(this.outDir.length));
+                    if (!('dispatcher' in module_1.exports) ||
+                        module_1.exports.dispatcher !== runtime_1.dispatcher)
+                        throw new Error(("Service module " + moduleId + " must ") +
+                            "export {dispatcher} from '@ennube/runtime'");
                     this.serviceModules[serviceName] = module_1.filename;
                 }
             }
         }
     };
     Project = __decorate([
-        shell_1.manager(), 
+        shell_1.manager(shell_1.Shell), 
         __metadata('design:paramtypes', [shell_1.Shell])
     ], Project);
     return Project;

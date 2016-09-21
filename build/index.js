@@ -2,10 +2,8 @@
 function __export(m) {
     for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
-require('reflect-metadata');
-require('core-js');
 __export(require('./shell'));
 __export(require('./project'));
 __export(require('./builder'));
-__export(require('./provider'));
+require('./providers/aws');
 //# sourceMappingURL=index.js.map

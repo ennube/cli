@@ -1,5 +1,6 @@
-import {typeOf} from './common';
+import {typeOf, Type} from './common';
 import * as yargs from 'yargs'
+//import * as _ from 'lodash'
 
 const banner =
 '                                                               \n' +
@@ -13,7 +14,7 @@ const banner =
 
 
 export interface ManagerClass extends Function {
-    new(shell: Shell): Manager;
+    new(...params: Manager[]): Manager;
 };
 
 export interface Manager {
@@ -23,6 +24,7 @@ export interface Manager {
 export const allManagers: {
     [managerName:string]: {
         managerClass: ManagerClass,
+        paramTypes: ManagerClass[],
         commands: {
             [methodName:string]: {
                 command: string,
@@ -34,12 +36,13 @@ export const allManagers: {
 } = {};
 
 
-export function manager() {
+export function manager(...paramTypes: ManagerClass[]) {
     return (managerClass: ManagerClass) => {
         let managerEntry = allManagers[managerClass.name];
         if( managerEntry === undefined )
             managerEntry = allManagers[managerClass.name] = {
                 commands: { },
+                paramTypes,
                 managerClass
             };
     }
@@ -57,6 +60,7 @@ export function command(command:string, description?:string, builder?) {
         if( managerEntry === undefined )
             managerEntry = allManagers[managerClass.name] = {
                 commands: { },
+                paramTypes: [],
                 managerClass
             };
 
@@ -81,9 +85,15 @@ export class Shell implements Manager {
 
     getManagerInstance(managerClass: ManagerClass) {
         let manager = this.allManagerInstances.get(managerClass);
-        if( manager === undefined )
-            this.allManagerInstances.set(managerClass,
-                manager = new managerClass(this));
+        if( manager === undefined ) {
+
+            // creates a new manager, inject constructor types.
+            let paramTypes = allManagers[managerClass.name].paramTypes;
+            manager = new managerClass(...paramTypes.map(
+                (T) => this.getManagerInstance(T)));
+
+            this.allManagerInstances.set(managerClass, manager);
+        }
 
         return manager;
     }

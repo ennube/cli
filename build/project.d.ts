@@ -6,7 +6,6 @@ export declare type TemplateCollection = {
     };
 };
 export declare class Project implements Manager {
-    shell: Shell;
     npm: {
         name: string;
         version: string;

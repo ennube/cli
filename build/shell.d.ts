@@ -1,12 +1,13 @@
 /// <reference types="core-js" />
 export interface ManagerClass extends Function {
-    new (shell: Shell): Manager;
+    new (...params: Manager[]): Manager;
 }
 export interface Manager {
 }
 export declare const allManagers: {
     [managerName: string]: {
         managerClass: ManagerClass;
+        paramTypes: ManagerClass[];
         commands: {
             [methodName: string]: {
                 command: string;
@@ -16,7 +17,7 @@ export declare const allManagers: {
         };
     };
 };
-export declare function manager(): (managerClass: ManagerClass) => void;
+export declare function manager(...paramTypes: ManagerClass[]): (managerClass: ManagerClass) => void;
 export declare function command(command: string, description?: string, builder?: any): (managerPrototype: any, methodName: string, descriptor: PropertyDescriptor) => void;
 export declare class Shell implements Manager {
     private allManagerInstances;

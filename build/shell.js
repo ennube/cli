@@ -21,11 +21,16 @@ var banner = '                                                               \n'
 ;
 exports.allManagers = {};
 function manager() {
+    var paramTypes = [];
+    for (var _i = 0; _i < arguments.length; _i++) {
+        paramTypes[_i - 0] = arguments[_i];
+    }
     return function (managerClass) {
         var managerEntry = exports.allManagers[managerClass.name];
         if (managerEntry === undefined)
             managerEntry = exports.allManagers[managerClass.name] = {
                 commands: {},
+                paramTypes: paramTypes,
                 managerClass: managerClass
             };
     };
@@ -41,6 +46,7 @@ function command(command, description, builder) {
         if (managerEntry === undefined)
             managerEntry = exports.allManagers[managerClass.name] = {
                 commands: {},
+                paramTypes: [],
                 managerClass: managerClass
             };
         managerEntry.commands[methodName] = {
@@ -57,9 +63,13 @@ var Shell = (function () {
         this.allManagerInstances.set(Shell, this);
     }
     Shell.prototype.getManagerInstance = function (managerClass) {
+        var _this = this;
         var manager = this.allManagerInstances.get(managerClass);
-        if (manager === undefined)
-            this.allManagerInstances.set(managerClass, manager = new managerClass(this));
+        if (manager === undefined) {
+            var paramTypes = exports.allManagers[managerClass.name].paramTypes;
+            manager = new (managerClass.bind.apply(managerClass, [void 0].concat(paramTypes.map(function (T) { return _this.getManagerInstance(T); }))))();
+            this.allManagerInstances.set(managerClass, manager);
+        }
         return manager;
     };
     Object.defineProperty(Shell.prototype, "projectDir", {
@@ -104,7 +114,6 @@ var Shell = (function () {
                 });
                 var success = function (x) {
                     console.error(managerClass.name + "." + methodName + " execution success");
-                    console.error(x);
                 };
                 var error = function (e) {
                     console.error(managerClass.name + "." + methodName + " execution failed");

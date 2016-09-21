@@ -1,1 +1,0 @@
-export { Amazon } from './amazon';

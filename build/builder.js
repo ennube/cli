@@ -10,14 +10,12 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 var shell_1 = require('./shell');
 var project_1 = require('./project');
-var runtime_1 = require('@ennube/runtime');
 var child_process = require('child_process');
 var webpack = require('webpack');
 var fsx = require('fs-extra');
 var archiver = require('archiver');
 var Builder = (function () {
-    function Builder(shell) {
-        this.shell = shell;
+    function Builder() {
     }
     Builder.prototype.build = function (shell, project) {
         return Promise.resolve()
@@ -36,7 +34,7 @@ var Builder = (function () {
             var entrySet = {};
             for (var serviceName in project.serviceModules) {
                 var serviceFileName = project.serviceModules[serviceName];
-                entrySet[serviceName] = [serviceFileName, runtime_1.handler.fileName];
+                entrySet[serviceName] = [serviceFileName];
             }
             var compiler = webpack({
                 entry: entrySet,
@@ -94,7 +92,7 @@ var Builder = (function () {
     ], Builder.prototype, "build", null);
     Builder = __decorate([
         shell_1.manager(), 
-        __metadata('design:paramtypes', [shell_1.Shell])
+        __metadata('design:paramtypes', [])
     ], Builder);
     return Builder;
 }());

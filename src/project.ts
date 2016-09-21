@@ -1,5 +1,5 @@
-import {Shell, Manager, manager} from './shell';
-import {allServices} from '@ennube/runtime';
+import {Shell, Manager, manager, command} from './shell';
+import {allServiceDescriptors, dispatcher} from '@ennube/runtime';
 import * as fs from 'fs-extra';
 
 export type TemplateCollection = {
@@ -8,7 +8,7 @@ export type TemplateCollection = {
     }
 };
 
-@manager()
+@manager(Shell)
 export class Project implements Manager {
     npm: {
         name: string,
@@ -38,7 +38,7 @@ export class Project implements Manager {
     };
 
     directory: string;
-    constructor(public shell: Shell) {
+    constructor(shell: Shell) {
         this.directory = shell.projectDir;
 
         // ensureNpmLoaded
@@ -86,6 +86,7 @@ export class Project implements Manager {
         return `${this.buildDir}/deployment`;
     }
 
+
     ensureLoaded() {
         // ensure builded, require Builder here..
         if(!this.mainModule) {
@@ -106,20 +107,24 @@ export class Project implements Manager {
             if(!module.filename.startsWith(this.directory))
                 continue;
 
-            for(let serviceName in allServices ) {
-                let serviceClass = allServices[serviceName].serviceClass;
+            for(let serviceName in allServiceDescriptors ) {
+                let serviceClass = allServiceDescriptors[serviceName].serviceClass;
 
                 if( serviceName in module.exports &&
                     serviceClass === module.exports[serviceClass.name]) {
                     console.log(`service ${serviceClass.name} found in ` +
                                 module.filename.substr(this.outDir.length));
 
-                    this.serviceModules[serviceName] = module.filename;
+                    if( !('dispatcher' in module.exports) ||
+                        module.exports.dispatcher !== dispatcher )
+                        throw new Error(`Service module ${moduleId} must ` +
+                            `export {dispatcher} from '@ennube/runtime'`);
 
-                    // ensure that the correct handler is always exported also
+                    this.serviceModules[serviceName] = module.filename;
                 }
             }
         }
     }
+
 
 }

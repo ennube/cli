@@ -2,5 +2,6 @@
 require('reflect-metadata');
 require('core-js');
 require('source-map-support').install();
+//require('lodash');
 let ennube = require('../build/index.js')
 new ennube.Shell().cli();
