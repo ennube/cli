@@ -43,6 +43,7 @@ var Shell = (function () {
                 var commandService = _this.getCommandService(command.serviceClass);
                 Promise.resolve()
                     .then(function () { return commandService[commandName](args); })
+                    .catch(function (x) { return console.error('ER', x); })
                     .catch(function (x) { return console.error('ER', x); });
             });
         });

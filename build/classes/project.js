@@ -1,6 +1,6 @@
 "use strict";
-var fs = require('fs-extra');
 var runtime_1 = require('@ennube/runtime');
+var fs = require('fs-extra');
 var Project = (function () {
     function Project(directory) {
         this.directory = directory;
@@ -9,6 +9,7 @@ var Project = (function () {
             request: {},
             response: {}
         };
+        this.directory = directory || process.cwd();
         this.deployHash = (new Date()).toJSON();
         this.npmFileName = directory + "/package.json";
         this.tscFileName = directory + "/tsconfig.json";

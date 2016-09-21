@@ -1,9 +1,9 @@
 /// <reference types="core-js" />
-import { Project, Provider } from '../../classes';
+import { Project } from '../../project';
 import { S3 } from './s3';
 import { Gateway } from './gateway';
 import { Lambda } from './lambda';
-export declare class Amazon extends Provider implements Gateway, S3, Lambda {
+export declare class Amazon implements Gateway, S3, Lambda {
     project: Project;
     stage: string;
     debug: boolean;
@@ -21,7 +21,9 @@ export declare class Amazon extends Provider implements Gateway, S3, Lambda {
         };
     };
     Outputs: Object;
-    createStackTemplate: string;
+    deploymentBucketName: string;
+    deploymentKeyPrefix: string;
+    deployHash: string;
     updateStackTemplate: string;
     constructor(project: Project, stage?: string);
     prepared: Boolean;
@@ -37,7 +39,7 @@ export declare class Amazon extends Provider implements Gateway, S3, Lambda {
     upload(args: any): Promise<void>;
     validate(args: any): void;
     describe(args: any): void;
-    ensure(): Promise<any>;
-    update(): Promise<{}>;
+    ensure(): Promise<void>;
+    updateStack(shell: any): Promise<{}>;
     send(method: string, ...params: any[]): Promise<{}>;
 }

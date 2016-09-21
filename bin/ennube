@@ -1,5 +1,6 @@
 #!/usr/bin/node
+require('reflect-metadata');
+require('core-js');
+require('source-map-support').install();
 let ennube = require('../build/index.js')
-let project = new ennube.Project(process.cwd())
-let shell = new ennube.Shell(project);
-shell.run();
+new ennube.Shell().cli();

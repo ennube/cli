@@ -1,4 +1,4 @@
-import {Project, command, Provider} from '../../classes';
+import {Project} from '../../project';
 import {http, storage} from '@ennube/runtime';
 import {getStackName} from './common';
 
@@ -9,17 +9,18 @@ import * as yaml from 'js-yaml';
 
 import * as aws from 'aws-sdk';
 
-import {mixin} from './common';
+import {mixin, send} from './common';
 
 import {S3} from './s3';
 import {Gateway} from './gateway';
 import {Lambda} from './lambda';
 
 @mixin(S3, Gateway, Lambda)
-export class Amazon extends Provider implements Gateway, S3, Lambda {
+export class Amazon  implements Gateway, S3, Lambda {
     debug = true;
 //    stage: string = 'development';
-    region: string = 'us-east-1';
+    region: string = 'eu-west-1';
+
 
     client : any;
 
@@ -39,15 +40,19 @@ export class Amazon extends Provider implements Gateway, S3, Lambda {
     Outputs: Object = {};
 
 
-    createStackTemplate: string;
+    deploymentBucketName: string;
+    deploymentKeyPrefix: string;
+    deployHash: string;
+
     updateStackTemplate: string;
 
     constructor(public project:Project, public stage: string='development') {
-        super(project);
-
+        this.deploymentBucketName = `${paramCase(project.name)}-deployment`;
         this.client = new aws['CloudFormation']({
             region: this.region
         });
+
+        this.deployHash = (new Date()).toJSON();
     }
 
     prepared: Boolean = false;
@@ -69,13 +74,6 @@ export class Amazon extends Provider implements Gateway, S3, Lambda {
 
         this.prepareS3Template();
         this.prepareGatewayTemplate();
-
-        fs.writeFileSync(`${this.project.deploymentDir}/stack.create.json`,
-            this.createStackTemplate = JSON.stringify(this.Template));
-
-        fs.writeFileSync(`${this.project.deploymentDir}/stack.create.yaml`,
-            yaml.dump(this.Template));
-
         this.prepareLambdaTemplate();
         this.prepareGatewayIntegrationTemplate();
 
@@ -102,13 +100,13 @@ export class Amazon extends Provider implements Gateway, S3, Lambda {
     // Lambda
     prepareLambdaTemplate: () => void;
 
-    @command('upload')
+//    @command('upload')
     upload(args) {
         this.ensurePrepared();
         return this.uploadDeploymentFiles();
     }
 
-    @command('validate')
+//    @command('validate')
     validate(args) {
         this.ensurePrepared();
         this.send('validateTemplate', {
@@ -118,7 +116,7 @@ export class Amazon extends Provider implements Gateway, S3, Lambda {
         .catch((x) => console.log('ER', x));
     }
 
-    @command('describe')
+//    @command('describe')
     describe(args) {
         this.send('describeStacks', {
 
@@ -128,67 +126,77 @@ export class Amazon extends Provider implements Gateway, S3, Lambda {
     }
 
 
-    @command('ensures the stack exists')
+//    @command('ensures the stack exists')
     ensure() {
         this.ensurePrepared();
         let stackName = getStackName(this.project.name, this.stage);
 
         return Promise.resolve()
 
-        .then(() => new Promise((resolve, reject) => {
-            console.log('Esuring stack existance...');
 
-            this.send('describeStacks', {
+
+    }
+
+//    @command()
+    updateStack(shell) {
+        this.ensurePrepared();
+        let cf = this.client;
+
+        // si existe, efectua un update, sino un create...
+
+        let stackName = getStackName(this.project.name, this.stage);
+
+        return Promise.resolve()
+
+        //.then( () => ) validate template...
+
+        // stack exists??
+
+        .then(() => new Promise((resolve, reject) => {
+            console.log('Stack exists??');
+
+            send( () => this.client.describeStacks({
                 StackName: stackName
-            })
+            }))
             .then((x) => resolve(true))
             .catch((x) => x.message.endsWith('does not exist')?
                 resolve(false):
                 reject(x))
         }))
 
-        .then((exists: any) => exists || new Promise((resolve, reject) => {
-            console.log('Creating stack...');
+        // UPDATE / CREATE STACK
 
-            this.send('createStack', {
-                StackName: stackName,
-                TemplateBody: this.createStackTemplate,
-                Capabilities: ['CAPABILITY_IAM'],
-                //OnFailure: this.debug? 'ROLLBACK': 'DELETE',
-            })
-            .then(() => resolve(this.send('waitFor', 'stackCreateComplete', {
-                StackName: stackName,
-            })))
-            .catch((x) => reject(x));
-            
-        }))
+        .then((exists: any) => new Promise((resolve, reject) => {
 
-    }
+            if( exists ){
+                var task = 'Updating stack';
+                var method = 'updateStack';
+                var successState = 'stackUpdateComplete';
+            } else {
+                var task = 'Creating stack';
+                var method = 'createStack';
+                var successState = 'stackCreateComplete';
+            }
 
-    @command()
-    update() {
-        this.ensurePrepared();
-        let stackName = getStackName(this.project.name, this.stage);
+            shell.task(task);
 
-        return Promise.resolve()
-
-        .then(() => new Promise((resolve, reject) => {
-            console.log('Updating stack...');
-
-            this.send('updateStack', {
+            send( () => cf[method]({
                 StackName: stackName,
                 TemplateBody: this.updateStackTemplate,
                 Capabilities: ['CAPABILITY_IAM'],
-//                  Capabilities: 'CAPABILITY_NAMED_IAM',
-//                  OnFailure: 'DELETE',
+                //OnFailure: this.debug? 'ROLLBACK': 'DELETE',
+            }) )
+            .then( () => {
+                send( () => this.client.waitFor(successState, {
+                    StackName: stackName
+                }))
+                .then( () => shell.resolveTask(resolve) )
+                .catch( (x) => shell.rejectTask(reject, x) )
             })
-            .then(() => resolve(this.send('waitFor', 'stackUpdateComplete', {
-                StackName: stackName,
-            })))
-            .catch((x) => reject(x));
+            .catch((x) => shell.rejectTask(reject, x));
 
+        }))
 
-        }));
     }
 
 

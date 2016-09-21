@@ -1,6 +1,6 @@
 "use strict";
-var runtime_1 = require('@ennube/runtime');
 var change_case_1 = require('change-case');
+var common_1 = require('./common');
 var ProgressBar = require('progress');
 var chalk = require('chalk');
 var aws = require('aws-sdk');
@@ -20,39 +20,31 @@ var S3 = (function () {
     function S3() {
     }
     S3.prototype.prepareS3Template = function () {
-        for (var bucketName in runtime_1.storage.allBuckets) {
-            var bucket = runtime_1.storage.allBuckets[bucketName];
-            var bucketId = getS3BucketId(this.project, bucket, this.stage);
-            this.Resources[bucketId] = {
-                Type: 'AWS::S3::Bucket',
-                Properties: {
-                    BucketName: getS3BucketName(this.project, bucket, this.stage),
-                    AccessControl: bucket.accessControl,
-                }
-            };
-        }
     };
     S3.prototype.uploadDeploymentFiles = function () {
         var _this = this;
-        return new Promise(function (resolve, reject) {
-            var deploymentBucket = runtime_1.storage.allBuckets['deployment'];
-            var awsS3Client = new aws.S3({});
-            var client = s3.createClient({
-                s3Client: awsS3Client,
-            });
-            var params = {
-                localDir: "" + _this.project.deploymentDir,
-                deleteRemoved: true,
-                s3Params: {
-                    Bucket: getS3BucketName(_this.project, deploymentBucket, _this.stage),
-                    Prefix: _this.project.deployHash + "/",
-                },
-            };
+        console.log("uploading to " + this.deploymentBucketName);
+        var awsS3Client = new aws.S3();
+        var s3Client = s3.createClient({ s3Client: awsS3Client });
+        return common_1.send(function () { return awsS3Client.createBucket({
+            Bucket: _this.deploymentBucketName,
+            CreateBucketConfiguration: {
+                LocationConstraint: _this.region
+            }
+        }); })
+            .catch(function () { return console.log("Bucket creation failed"); })
+            .then(function () { return new Promise(function (resolve, reject) {
             var progressBar = undefined;
             var lastAmount = 0;
-            var uploader = client.uploadDir(params)
+            var uploader = s3Client.uploadDir({
+                localDir: "" + _this.project.deploymentDir,
+                s3Params: {
+                    Bucket: _this.deploymentBucketName,
+                    Prefix: _this.deployHash + "/",
+                },
+            })
                 .on('progress', function () {
-                if (uploader.progressTotal == 0)
+                if (uploader == undefined || uploader.progressTotal == 0)
                     return;
                 if (progressBar === undefined)
                     progressBar = new ProgressBar('Syncing deployment bucket [:bar] :percent :etas', {
@@ -65,14 +57,12 @@ var S3 = (function () {
                 lastAmount = uploader.progressAmount;
             })
                 .on('end', function () {
-                console.log("done uploading");
                 resolve();
             })
                 .on('error', function (err) {
-                console.error("unable to sync:", err);
                 reject(err);
             });
-        });
+        }); });
     };
     return S3;
 }());

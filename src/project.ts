@@ -1,8 +1,6 @@
-import * as fs from 'fs-extra';
-//require('source-map-support').install();
+import {Shell, Manager, manager} from './shell';
 import {allServices} from '@ennube/runtime';
-
-import * as classes from '../classes';
+import * as fs from 'fs-extra';
 
 export type TemplateCollection = {
     [mimeType:string]: {
@@ -10,13 +8,8 @@ export type TemplateCollection = {
     }
 };
 
-export class Project {
-    deployHash: string;
-    npmFileName: string;
-    tscFileName: string;
-
-    mainModule: Object;
-
+@manager()
+export class Project implements Manager {
     npm: {
         name: string,
         version: string,
@@ -30,6 +23,8 @@ export class Project {
         };
     };
 
+    mainModule: Object;
+
     serviceModules: {
         [name:string]: string
     } = {};
@@ -42,31 +37,40 @@ export class Project {
         response: {}
     };
 
-    constructor(public directory:string) {
-        this.deployHash = (new Date()).toJSON();
-        this.npmFileName = `${directory}/package.json`;
-        this.tscFileName = `${directory}/tsconfig.json`;
+    directory: string;
+    constructor(public shell: Shell) {
+        this.directory = shell.projectDir;
 
-        if( fs.existsSync(this.npmFileName) )
-            this.npm = fs.readJSONSync(this.npmFileName);
+        // ensureNpmLoaded
+
+        let npmFileName = `${this.directory}/package.json`;
+        if( fs.existsSync(npmFileName) )
+            this.npm = fs.readJSONSync(npmFileName);
         else
             throw new Error(`You must run ennube into a npm inited directory`)
 
-        if( fs.existsSync(this.tscFileName) )
-            this.tsc = fs.readJSONSync(this.tscFileName);
+        // TODO: npm checks
+
+
+        // ensureTscLoaded
+
+        let tscFileName = `${this.directory}/tsconfig.json`;
+        if( fs.existsSync(tscFileName) )
+            this.tsc = fs.readJSONSync(tscFileName);
         else
             throw new Error(`You must run ennube into a tsc inited directory`)
-
-        // TODO: ensure tsc compilerOptions...
+        // TODO: tsc checks
 
     }
 
     get name() {
-        // ensure npm inited
+        if( this.npm === undefined )
+            throw new Error('you must ensureNpmLoaded before get project.name');
         return this.npm.name;
     }
     get mainModuleFileName() {
-        // ensure npm inited
+        if( this.npm === undefined )
+            throw new Error('you must ensureNpmLoaded before get project.mainModuleFileName');
         return `${this.directory}/${this.npm.main}`;
     }
     get outDir() {
@@ -82,15 +86,6 @@ export class Project {
         return `${this.buildDir}/deployment`;
     }
 
-/*
-    private _provider: classes.Provider;
-    get provider(): classes.Provider {
-        let provider = this._provider;
-        if( provider === undefined )
-            provider = this._provider = new classes.Provider(this);
-        return provider;
-    }
-*/
     ensureLoaded() {
         // ensure builded, require Builder here..
         if(!this.mainModule) {

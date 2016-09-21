@@ -1,5 +1,7 @@
 import {pascalCase, paramCase} from 'change-case';
 
+//import * as aws from 'aws-sdk';
+
 // common
 export function getStackName(projectName: string, stage: string) {
     return `${pascalCase(projectName)}-${pascalCase(stage)}`;
@@ -42,4 +44,48 @@ export namespace fn {
         return { "Fn::Join": [delimitier, params] };
     }
 
+}
+
+
+class Stack {
+    constructor(public region:string, public stage:string) {
+    }
+
+    get template() {
+        return {
+
+        };
+    }
+    // resources
+    // by class
+    // by id
+}
+
+abstract class Resource {
+    constructor(public stack: Stack, public parent: Resource) {
+    }
+
+    abstract get id(): string;
+    abstract get type(): string;
+    abstract get metadata(): any;
+    abstract get dependsOn(): any;
+    abstract get properties(): any;
+
+    get ref() {
+        return { 'Ref': this.id };
+    }
+
+    getAtt(att:string) {
+        return { 'Fn::getAtt': [this.id, att] };
+    }
+
+}
+
+export function send(request: (()=>any)) {
+    return new Promise((resolve, reject) => {
+        request()
+        .on('success', (response) => resolve(response) )
+        .on('error', (response) => reject(response) )
+        .send();
+    });
 }

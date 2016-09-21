@@ -1,12 +1,14 @@
-import {Project} from '../../classes';
+import {Project} from '../../project';
 import {storage} from '@ennube/runtime';
 import {pascalCase, paramCase} from 'change-case';
+
+import {send} from './common';
 
 import * as ProgressBar from 'progress';
 import * as chalk from 'chalk';
 
-import * as aws from 'aws-sdk';
-const s3 = require('s3');  // @types/s3 not available
+const aws = require('aws-sdk');// @types/aws-sdk no usable
+const s3 = require('s3'); // @types/s3 not available
 
 
 export function getS3BucketId(project: Project, bucket: storage.Bucket, stage:string) {
@@ -24,11 +26,15 @@ export function getS3BucketName(project:Project, bucket: storage.Bucket, stage:s
 export class S3 {
     stage: string;
     region: string;
+    deployHash:string;
+
+    deploymentBucketName: string;
 
     project: Project;
     Resources: Object;
 
     prepareS3Template() {
+        /*
         for(let bucketName in storage.allBuckets) {
             let bucket = storage.allBuckets[bucketName];
             let bucketId = getS3BucketId(this.project, bucket, this.stage);
@@ -40,34 +46,35 @@ export class S3 {
                     AccessControl: bucket.accessControl,
                 }
             }
-            /*
-            this.Outputs[bucketId] = {
-                Value: ref(bucketId),
-            };*/
         }
+        */
     }
 
     uploadDeploymentFiles() {
-        return new Promise<void>((resolve, reject) => {
-            let deploymentBucket = storage.allBuckets['deployment'];
-            var awsS3Client = new aws.S3({});
-            var client = s3.createClient({
-                s3Client: awsS3Client,
-            });
-            var params = {
-                localDir: `${this.project.deploymentDir}`,
-                deleteRemoved: true,
-                s3Params: {
-                    Bucket: getS3BucketName(this.project, deploymentBucket, this.stage),
-                    Prefix: `${this.project.deployHash}/`,
-                },
-            };
+        console.log(`uploading to ${this.deploymentBucketName}`);
+        var awsS3Client = new aws.S3();
 
+        var s3Client = s3.createClient({ s3Client: awsS3Client });
+
+        return send( () => awsS3Client.createBucket({
+            Bucket: this.deploymentBucketName,
+            CreateBucketConfiguration: {
+                LocationConstraint: this.region
+            }
+        }))
+        .catch( () => console.log(`Bucket creation failed`) )
+        .then( () => new Promise<void>((resolve, reject) => {
             let progressBar = undefined;
             let lastAmount = 0;
-            let uploader = client.uploadDir(params)
+            let uploader = s3Client.uploadDir({
+                localDir: `${this.project.deploymentDir}`,
+                s3Params: {
+                    Bucket: this.deploymentBucketName,
+                    Prefix: `${this.deployHash}/`,
+                },
+            })
             .on('progress', function() {
-                if( uploader.progressTotal == 0)
+                if(uploader == undefined || uploader.progressTotal == 0)
                     return;
 
                 if( progressBar === undefined )
@@ -78,19 +85,16 @@ export class S3 {
                             width: process.stdout['columns'] | 40,
                     });
 
-                progressBar.tick(uploader.progressAmount-lastAmount);
+                progressBar.tick(uploader.progressAmount - lastAmount);
                 lastAmount = uploader.progressAmount;
             })
             .on('end', function() {
-                
-                console.log("done uploading");
                 resolve()
             })
             .on('error', function(err) {
-                console.error("unable to sync:", err);
                 reject(err);
             });
-        });
+        }));
     }
 
 

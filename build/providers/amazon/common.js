@@ -55,4 +55,69 @@ var fn;
     }
     fn.join = join;
 })(fn = exports.fn || (exports.fn = {}));
+var Stack = (function () {
+    function Stack(region, stage) {
+        this.region = region;
+        this.stage = stage;
+    }
+    Object.defineProperty(Stack.prototype, "template", {
+        get: function () {
+            return {};
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return Stack;
+}());
+var Resource = (function () {
+    function Resource(stack, parent) {
+        this.stack = stack;
+        this.parent = parent;
+    }
+    Object.defineProperty(Resource.prototype, "id", {
+        get: function () { },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Resource.prototype, "type", {
+        get: function () { },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Resource.prototype, "metadata", {
+        get: function () { },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Resource.prototype, "dependsOn", {
+        get: function () { },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Resource.prototype, "properties", {
+        get: function () { },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Resource.prototype, "ref", {
+        get: function () {
+            return { 'Ref': this.id };
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Resource.prototype.getAtt = function (att) {
+        return { 'Fn::getAtt': [this.id, att] };
+    };
+    return Resource;
+}());
+function send(request) {
+    return new Promise(function (resolve, reject) {
+        request()
+            .on('success', function (response) { return resolve(response); })
+            .on('error', function (response) { return reject(response); })
+            .send();
+    });
+}
+exports.send = send;
 //# sourceMappingURL=common.js.map

@@ -21,3 +21,4 @@ export declare namespace fn {
         "Fn::Join": (string | any[])[];
     };
 }
+export declare function send(request: (() => any)): Promise<{}>;

@@ -1,6 +1,5 @@
 "use strict";
 var common_1 = require('./common');
-var s3_1 = require('./s3');
 var runtime_1 = require('@ennube/runtime');
 var change_case_1 = require('change-case');
 function getLambdaId(serviceName, stage) {
@@ -55,15 +54,15 @@ var Lambda = (function () {
             this.Resources[lambdaId] = {
                 Type: 'AWS::Lambda::Function',
                 Properties: {
-                    FunctionName: lambdaId,
+                    Description: lambdaId,
                     Runtime: 'nodejs4.3',
                     MemorySize: service.memoryLimit,
                     Timeout: service.timeLimit,
                     Handler: serviceName + ".handler",
                     Role: common_1.getAtt('ServiceRole', 'Arn'),
                     Code: {
-                        S3Bucket: common_1.ref(s3_1.getS3BucketId(this.project, deploymentBucket, this.stage)),
-                        S3Key: this.project.deployHash + "/" + serviceName + ".zip"
+                        S3Bucket: this.deploymentBucketName,
+                        S3Key: this.deployHash + "/" + serviceName + ".zip"
                     },
                 }
             };

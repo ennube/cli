@@ -1,4 +1,4 @@
-import { Project } from '../../classes';
+import { Project } from '../../project';
 import { http } from '@ennube/runtime';
 export declare class Gateway {
     project: Project;
@@ -7,6 +7,8 @@ export declare class Gateway {
         [resourceId: string]: {
             Type: string;
             Properties: any;
+            Metadata?: any;
+            DependsOn?: any;
         };
     };
     prepareGatewayTemplate(): void;

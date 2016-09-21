@@ -48,8 +48,8 @@ function integrationResponse(statusCode) {
     var responseTemplates = {};
     if (statusCode == 200) {
         responseTemplates = {
-            'text/http': "#set($inputRoot = $input.path('$'))\n$inputRoot.Content",
-            'application/json': "#set($inputRoot = $input.path('$'))\n$inputRoot.Content",
+            'text/http': "#set($inputRoot = $input.path('$'))\n$inputRoot.content",
+            'application/json': "#set($inputRoot = $input.path('$'))\n$inputRoot.content",
         };
     }
     else if (statusCode >= 300 && statusCode < 400) {
@@ -65,8 +65,8 @@ function integrationResponse(statusCode) {
     else if (statusCode >= 400 && statusCode <= 500) {
         selectionPattern = "\\[" + statusCode + ".*";
         responseTemplates = {
-            'text/http': "#set($_body = $util.parseJson($input.path('$.errorMessage'))[1])\n$util.base64Decode($_body)",
-            'application/json': "#set($_body = $util.parseJson($input.path('$.errorMessage'))[1])\n$util.base64Decode($_body)",
+            'text/http': "#set($_body = $util.parseJson($input.path('$.errorMessage'))[1])\n$_body.content",
+            'application/json': "#set($_body = $util.parseJson($input.path('$.errorMessage'))[1])\n$_body.content",
         };
     }
     return {
@@ -100,7 +100,7 @@ var Gateway = (function () {
                     var urlPart = _a[_i];
                     var argMatch = /\{([\-\w]+)\}/.exec(urlPart);
                     if (argMatch) {
-                        requestParameters["method.request.path.argMatch[1]"] = true;
+                        requestParameters[("method.request.path." + argMatch[1])] = true;
                     }
                     urlParts.push(urlPart);
                     var resourceId = getGatewayUrlId(gateway, urlParts);
@@ -144,6 +144,7 @@ var Gateway = (function () {
                     MethodResponses: [
                         methodResponse(200),
                         methodResponse(301),
+                        methodResponse(400),
                         methodResponse(401),
                         methodResponse(403),
                         methodResponse(404),
@@ -155,20 +156,24 @@ var Gateway = (function () {
     };
     Gateway.prototype.prepareGatewayIntegrationTemplate = function () {
         var _this = this;
+        var allMethodIds = [];
         gatewayIterator(function (gateway, url, method, endpoint) {
             var methodId = getGatewayUrlMethodId(gateway, _.trim(url, '/').split('/'), method);
             var resource = _this.Resources[methodId];
             _this.prepareGatewayLambdaTemplate(resource.Properties.Integration, endpoint);
+            allMethodIds.push(methodId);
         });
         for (var gateway in runtime_1.http.allGateways) {
             var gatewayId = getGatewayId(gateway);
             var deploymentId = "" + gatewayId + change_case_1.pascalCase(this.stage) + "Deployment";
+            var stageId = "" + gatewayId + change_case_1.pascalCase(this.stage) + "Stage";
             this.Resources[deploymentId] = {
                 Type: 'AWS::ApiGateway::Deployment',
+                DependsOn: allMethodIds,
                 Properties: {
                     RestApiId: common_1.fn.ref(gatewayId),
-                    StageName: change_case_1.pascalCase(this.stage),
-                }
+                    StageName: "" + change_case_1.pascalCase(this.stage),
+                },
             };
         }
     };

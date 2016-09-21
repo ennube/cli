@@ -1,4 +1,4 @@
-import {Project} from '../../classes';
+import {Project} from '../../project';
 import {http} from '@ennube/runtime';
 import {fn} from './common';
 import {getLambdaId} from './lambda';
@@ -115,7 +115,9 @@ export class Gateway {
     Resources: {
         [resourceId:string]: {
             Type: string,
-            Properties: any
+            Properties: any,
+            Metadata?: any,
+            DependsOn?: any,
         }
     };
 
@@ -210,6 +212,7 @@ export class Gateway {
     }
 
     prepareGatewayIntegrationTemplate() {
+        let allMethodIds = [];
         gatewayIterator((gateway, url, method, endpoint) => {
 
             let methodId = getGatewayUrlMethodId(gateway,
@@ -222,20 +225,36 @@ export class Gateway {
                 resource.Properties.Integration,
                 endpoint
             );
+
+            allMethodIds.push(methodId);
         });
 
-        //for
+        ///
 
         for( let gateway in http.allGateways ) {
             let gatewayId = getGatewayId(gateway);
             let deploymentId = `${gatewayId}${pascalCase(this.stage)}Deployment`;
+            let stageId = `${gatewayId}${pascalCase(this.stage)}Stage`;
+
             this.Resources[deploymentId] = {
                 Type: 'AWS::ApiGateway::Deployment',
+                DependsOn: allMethodIds,
                 Properties: {
                     RestApiId: fn.ref(gatewayId),
-                    StageName: pascalCase(this.stage),
-                }
+                    StageName: `${pascalCase(this.stage)}`,
+                },
             };
+/*
+            this.Resources[stageId] = {
+                Type: 'AWS::ApiGateway::Stage',
+                Properties: {
+                    RestApiId: fn.ref(gatewayId),
+                    DeploymentId: fn.ref(deploymentId),
+                    StageName: pascalCase(this.stage),
+                },
+            };
+*/
+
         }
 
     }

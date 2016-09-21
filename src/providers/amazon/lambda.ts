@@ -1,4 +1,4 @@
-import {Project} from '../../classes';
+import {Project} from '../../project';
 import {ref, getAtt, fn, getStackName} from './common';
 import {getS3BucketId} from './s3';
 import {allServices, storage} from '@ennube/runtime';
@@ -12,6 +12,8 @@ export class Lambda {
     region: string;
     stage: string;
     project: Project;
+    deploymentBucketName: string;
+    deployHash: string;
     Resources: {
         [resourceId:string]: {
             Type: string,
@@ -66,15 +68,17 @@ export class Lambda {
             this.Resources[lambdaId] = {
                 Type: 'AWS::Lambda::Function',
                 Properties: {
-                    FunctionName: lambdaId,
+                    //FunctionName: lambdaId,
+                    Description: lambdaId,
                     Runtime: 'nodejs4.3',
                     MemorySize: service.memoryLimit,
                     Timeout: service.timeLimit,
                     Handler: `${serviceName}.handler`,
                     Role: getAtt('ServiceRole', 'Arn'),
                     Code: {
-                        S3Bucket: ref(getS3BucketId(this.project, deploymentBucket, this.stage)),
-                        S3Key: `${this.project.deployHash}/${serviceName}.zip`
+                        //S3Bucket: ref(getS3BucketId(this.project, deploymentBucket, this.stage)),
+                        S3Bucket: this.deploymentBucketName,
+                        S3Key: `${this.deployHash}/${serviceName}.zip`
                     },
                 }
             };

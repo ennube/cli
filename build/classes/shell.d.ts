@@ -1,6 +1,6 @@
 /// <reference types="yargs" />
-import * as yargs from 'yargs';
 import { Project } from './project';
+import * as yargs from 'yargs';
 export interface ICommandServiceClass {
     new (project: Project): CommandService;
 }

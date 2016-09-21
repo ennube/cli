@@ -2,9 +2,10 @@
 function __export(m) {
     for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
-__export(require('./classes'));
-var _providers = require('./providers');
-exports.providers = _providers;
-var _commands = require('./commands');
-exports.commands = _commands;
+require('reflect-metadata');
+require('core-js');
+__export(require('./shell'));
+__export(require('./project'));
+__export(require('./builder'));
+__export(require('./provider'));
 //# sourceMappingURL=index.js.map
