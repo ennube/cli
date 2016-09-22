@@ -63,7 +63,7 @@ var Aws = (function () {
                             },
                             Action: ["sts:AssumeRole"]
                         }]
-                },
+                }
             });
             lambdas[serviceName] = new lambda.Function(stack, serviceDescriptor, role);
             lambdaRoles.push(role);
@@ -84,11 +84,25 @@ var Aws = (function () {
                         }]
                 }
             });
-        for (var gatewayId in rt.http.allGateways) {
-            var gateway = rt.http.allGateways[gatewayId];
+        var apiGatewayRoles = [];
+        for (var gatewayName in rt.http.allGateways) {
+            var gateway = rt.http.allGateways[gatewayName];
             var restApi = new agw.RestApi(stack, gateway);
+            var role = new iam.Role(stack, {
+                name: gatewayName + "Execution",
+                policyDocument: {
+                    Version: "2012-10-17",
+                    Statement: [{
+                            Effect: "Allow",
+                            Principal: {
+                                Service: ["lambda.amazonaws.com"]
+                            },
+                            Action: ["sts:AssumeRole"]
+                        }]
+                },
+            });
+            apiGatewayRoles.push(role);
             var endpoints = {};
-            var methods = [];
             for (var url in gateway.endpoints) {
                 var httpMethods = gateway.endpoints[url];
                 var requestParameters = {};
@@ -101,7 +115,7 @@ var Aws = (function () {
                         var urlPart = _a[_i];
                         urlParts.push(urlPart);
                         var endpointUrl = urlParts.join('/');
-                        var paramMatch = /\{([\-\w]+)\}/.exec(urlPart);
+                        var paramMatch = /\{([\-\w]+)(\+)?\}/.exec(urlPart);
                         if (paramMatch)
                             urlParams.push(paramMatch[1]);
                         parentEndpoint = endpoints[endpointUrl];
@@ -119,15 +133,32 @@ var Aws = (function () {
                         httpMethod: httpMethod
                     });
                     new lambda.Permission(stack, {
-                        "function": __function,
-                        principal: "apigateway.amazonaws.com",
-                        action: "lambda:InvokeFunction"
+                        'function': __function,
+                        principal: 'apigateway.amazonaws.com',
+                        action: 'lambda:InvokeFunction',
                     });
-                    methods.push(lambdaMethod);
                 }
             }
-            new agw.Deployment(restApi, methods);
+            new agw.Deployment(restApi, {
+                variables: {
+                    gatewayName: gatewayName
+                }
+            });
         }
+        if (apiGatewayRoles.length)
+            new iam.Policy(stack, 'LambdaInvokeFunction', {
+                roles: apiGatewayRoles,
+                policyDocument: {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Action": "lambda:InvokeFunction",
+                            "Resource": "*"
+                        }
+                    ]
+                }
+            });
         console.log(YAML.dump(stack.template));
         return stack;
     };

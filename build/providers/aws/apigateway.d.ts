@@ -6,6 +6,7 @@ import * as _ from 'lodash';
 export declare class RestApi extends Resource {
     gateway: http.Gateway;
     constructor(stack: Stack, gateway: http.Gateway);
+    allMethods: Method[];
     readonly type: string;
     readonly id: string;
     readonly properties: {
@@ -45,17 +46,14 @@ export declare abstract class Method extends Resource {
         RequestParameters: _.Dictionary<any>;
         Integration: {
             Type: any;
+            Credentials: string;
             IntegrationHttpMethod: string;
-            IntegrationResponses: any;
             Uri: any;
         };
-        MethodResponses: any;
     };
     readonly requestParameters: _.Dictionary<any>;
     readonly abstract integrationType: any;
     readonly abstract integrationUri: any;
-    readonly integrationResponses: any;
-    readonly methodResponses: any;
 }
 export interface LambdaMethodParams extends MethodParams {
     function: Function;
@@ -72,14 +70,27 @@ export declare class LambdaMethod extends Method {
         "Fn::Join": (string | any[])[];
     };
 }
+export interface DeploymentParams {
+    variables?: {
+        [varName: string]: string;
+    };
+}
 export declare class Deployment extends Resource {
     restApi: RestApi;
-    dependsOn: Resource[];
-    constructor(restApi: RestApi, dependsOn: Resource[]);
+    variables: {
+        [varName: string]: string;
+    };
+    constructor(restApi: RestApi, params?: DeploymentParams);
+    readonly dependsOn: Method[];
     readonly type: string;
     readonly id: string;
     readonly properties: {
         RestApiId: any;
         StageName: string;
+        StageDescription: {
+            Variables: {
+                [varName: string]: string;
+            };
+        };
     };
 }

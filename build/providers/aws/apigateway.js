@@ -7,11 +7,13 @@ var __extends = (this && this.__extends) || function (d, b) {
 var cloudformation_1 = require('./cloudformation');
 var change_case_1 = require('change-case');
 var _ = require('lodash');
+;
 var RestApi = (function (_super) {
     __extends(RestApi, _super);
     function RestApi(stack, gateway) {
         _super.call(this, stack);
         this.gateway = gateway;
+        this.allMethods = [];
     }
     Object.defineProperty(RestApi.prototype, "type", {
         get: function () {
@@ -81,34 +83,10 @@ var Endpoint = (function (_super) {
 }(cloudformation_1.Resource));
 exports.Endpoint = Endpoint;
 var statusCodes = {
-    GET: [200, 301, 400, 401, 403, 404, 500],
+    GET: [200, 308, 400, 401, 403, 404, 500],
     POST: [201, 303, 400, 401, 403, 404, 500],
-    PUT: [201, 303, 400, 401, 403, 404, 500],
-    DELETE: [201, 303, 400, 401, 403, 404, 500],
-};
-var responseModels = {
-    'text/html': 'Empty',
-    'application/json': 'Empty',
-};
-var responseParameters = {
-    'method.response.header.location': false,
-};
-var defaultResponseParameters = {};
-var defaultResponseTemplates = {
-    'text/http': "#set($inputRoot = $input.path('$'))\n$inputRoot.content",
-    'application/json': "#set($inputRoot = $input.path('$'))\n$inputRoot.content",
-};
-var redirectionResponseParameters = {
-    'method.response.header.location': "integration.response.body.errorMessage",
-};
-var redirectionResponseTemplates = {
-    'text/html': "",
-    'application/json': "",
-};
-var errorResponseParameters = {};
-var errorResponseTemplates = {
-    'text/http': "#set($_body = $util.parseJson($input.path('$.errorMessage'))[1])\n$_body.content",
-    'application/json': "#set($_body = $util.parseJson($input.path('$.errorMessage'))[1])\n$_body.content",
+    PUT: [204, 303, 400, 401, 403, 404, 500],
+    DELETE: [204, 303, 400, 401, 403, 404, 500],
 };
 var Method = (function (_super) {
     __extends(Method, _super);
@@ -117,6 +95,7 @@ var Method = (function (_super) {
         this.restApi = restApi;
         this.parent = parent;
         Object.assign(this, params);
+        restApi.allMethods.push(this);
     }
     Object.defineProperty(Method.prototype, "type", {
         get: function () {
@@ -147,11 +126,10 @@ var Method = (function (_super) {
                 RequestParameters: this.requestParameters,
                 Integration: {
                     Type: this.integrationType,
+                    Credentials: 'arn:aws:iam::597389418205:role/APIGatewayLambdaProxy',
                     IntegrationHttpMethod: 'POST',
-                    IntegrationResponses: this.integrationResponses,
                     Uri: this.integrationUri,
                 },
-                MethodResponses: this.methodResponses,
             };
         },
         enumerable: true,
@@ -176,48 +154,6 @@ var Method = (function (_super) {
         enumerable: true,
         configurable: true
     });
-    Object.defineProperty(Method.prototype, "integrationResponses", {
-        get: function () {
-            return statusCodes[this.httpMethod].map(function (statusCode) {
-                if (200 <= statusCode && statusCode < 300)
-                    return {
-                        StatusCode: statusCode,
-                        SelectionPattern: undefined,
-                        ResponseParameters: defaultResponseParameters,
-                        ResponseTemplates: defaultResponseTemplates
-                    };
-                else if (300 <= statusCode && statusCode < 400)
-                    return {
-                        StatusCode: statusCode,
-                        SelectionPattern: 'http.*',
-                        ResponseParameters: redirectionResponseParameters,
-                        ResponseTemplates: redirectionResponseTemplates,
-                    };
-                else if (400 <= statusCode)
-                    return {
-                        StatusCode: statusCode,
-                        SelectionPattern: "\\[" + statusCode + ",.*",
-                        ResponseParameters: errorResponseParameters,
-                        ResponseTemplates: errorResponseTemplates,
-                    };
-            });
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Method.prototype, "methodResponses", {
-        get: function () {
-            return statusCodes[this.httpMethod].map(function (statusCode) {
-                return {
-                    StatusCode: statusCode,
-                    ResponseModels: responseModels,
-                    ResponseParameters: responseParameters
-                };
-            });
-        },
-        enumerable: true,
-        configurable: true
-    });
     return Method;
 }(cloudformation_1.Resource));
 exports.Method = Method;
@@ -229,7 +165,7 @@ var LambdaMethod = (function (_super) {
     }
     Object.defineProperty(LambdaMethod.prototype, "integrationType", {
         get: function () {
-            return 'AWS';
+            return 'AWS_PROXY';
         },
         enumerable: true,
         configurable: true
@@ -246,11 +182,20 @@ var LambdaMethod = (function (_super) {
 exports.LambdaMethod = LambdaMethod;
 var Deployment = (function (_super) {
     __extends(Deployment, _super);
-    function Deployment(restApi, dependsOn) {
+    function Deployment(restApi, params) {
+        if (params === void 0) { params = {}; }
         _super.call(this, restApi.stack);
         this.restApi = restApi;
-        this.dependsOn = dependsOn;
+        this.variables = {};
+        Object.assign(this, params);
     }
+    Object.defineProperty(Deployment.prototype, "dependsOn", {
+        get: function () {
+            return this.restApi.allMethods;
+        },
+        enumerable: true,
+        configurable: true
+    });
     Object.defineProperty(Deployment.prototype, "type", {
         get: function () {
             return 'AWS::ApiGateway::Deployment';
@@ -270,6 +215,9 @@ var Deployment = (function (_super) {
             return {
                 RestApiId: this.restApi.ref,
                 StageName: "" + change_case_1.pascalCase(this.stack.stage),
+                StageDescription: {
+                    Variables: this.variables
+                }
             };
         },
         enumerable: true,

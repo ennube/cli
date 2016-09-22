@@ -1,6 +1,5 @@
 import {Shell, Manager, manager, command} from './shell';
 import {Project} from './project';
-import {dispatchFileName} from '@ennube/runtime';
 
 import * as child_process from 'child_process';
 import * as webpack from 'webpack';
@@ -46,7 +45,6 @@ export class Builder implements Manager {
 
             for(let serviceName in project.serviceModules) {
                 let serviceFileName = project.serviceModules[serviceName];
-                //entrySet[serviceName] = [serviceFileName, dispatchFileName];
                 entrySet[serviceName] = [serviceFileName];
             }
 

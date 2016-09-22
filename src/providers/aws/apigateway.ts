@@ -5,10 +5,43 @@ import {pascalCase} from 'change-case';
 import {http} from '@ennube/runtime';
 import * as _ from 'lodash';
 
+
+// pasar la construccion de esto al index.
+interface ResponseStatus {
+
+    success: {
+        statusCode: number; // 2xx codes
+        templates: {
+            [mimeType:string]: string
+        };
+    };
+
+    redirect: {
+        statusCode: number; // 3xx codes..
+        templates: {
+            [mimeType:string]: string
+        };
+    };
+
+    error: {
+        [statusCode:number]: { // 4xx 5xx
+            templates: {
+                [mimeType:string]: string
+            };
+        }
+    };
+
+};
+
+
+
+
 export class RestApi extends Resource {
     constructor(stack: Stack, public gateway: http.Gateway) {
         super(stack);
     }
+    allMethods: Method[] = [];
+
     get type() {
         return 'AWS::ApiGateway::RestApi';
     }
@@ -46,60 +79,19 @@ export class Endpoint extends Resource {
     }
 }
 
+const statusCodes = {
+    // http://www.restapitutorial.com/httpstatuscodes.html
+    GET:    [200, 308, 400, 401, 403, 404, 500],
+    POST:   [201, 303, 400, 401, 403, 404, 500],
+    PUT:    [204, 303, 400, 401, 403, 404, 500],
+    DELETE: [204, 303, 400, 401, 403, 404, 500],
+};
+
+
 export interface MethodParams {
     httpMethod: string;
     urlParams: string[];
 }
-
-const statusCodes = {
-    GET:    [200, 301, 400, 401, 403, 404, 500],
-    POST:   [201, 303, 400, 401, 403, 404, 500],
-    PUT:    [201, 303, 400, 401, 403, 404, 500],
-    DELETE: [201, 303, 400, 401, 403, 404, 500],
-};
-
-//
-//   TODO: Generar los REQUEST
-//
-//
-
-
-const responseModels = {
-    'text/html': 'Empty',
-    'application/json': 'Empty',
-};
-
-let responseParameters = {
-    'method.response.header.location': false,
-};
-
-
-const defaultResponseParameters = {
-};
-
-const defaultResponseTemplates = {
-    'text/http': `#set($inputRoot = $input.path('$'))\n$inputRoot.content`,
-    'application/json': `#set($inputRoot = $input.path('$'))\n$inputRoot.content`,
-};
-
-
-const redirectionResponseParameters = {
-    'method.response.header.location' : "integration.response.body.errorMessage",
-};
-
-const redirectionResponseTemplates = {
-    'text/html' : "",
-    'application/json' : "",
-};
-
-const errorResponseParameters = {
-
-};
-
-const errorResponseTemplates = {
-    'text/http': `#set($_body = $util.parseJson($input.path('$.errorMessage'))[1])\n$_body.content`,
-    'application/json': `#set($_body = $util.parseJson($input.path('$.errorMessage'))[1])\n$_body.content`,
-};
 
 export abstract class Method extends Resource {
     httpMethod: string;
@@ -108,6 +100,7 @@ export abstract class Method extends Resource {
     constructor(public restApi: RestApi, public parent: Endpoint, params: MethodParams) {
         super(restApi.stack);
         Object.assign(this, params);
+        restApi.allMethods.push(this);
     }
     get type() {
         return 'AWS::ApiGateway::Method';
@@ -120,6 +113,12 @@ export abstract class Method extends Resource {
 
     }
     get properties() {
+
+        /*
+            Delegar a Response Mapper / Request Mapper cuando el metodo requiera
+            de integracion.
+         */
+
         return {
             RestApiId: this.restApi.ref,
             ResourceId: this.parent !== undefined?
@@ -128,14 +127,18 @@ export abstract class Method extends Resource {
             HttpMethod: this.httpMethod,
             AuthorizationType: 'NONE',
             RequestParameters: this.requestParameters,
+
+            // La capa de integracion de un método...
+
             Integration: {
                 Type: this.integrationType,
+                Credentials: 'arn:aws:iam::597389418205:role/APIGatewayLambdaProxy',
 //                IntegrationHttpMethod: this.httpMethod,
                 IntegrationHttpMethod: 'POST',
-                IntegrationResponses: this.integrationResponses,
+//                IntegrationResponses: this.integrationResponses,
                 Uri: this.integrationUri,
             },
-            MethodResponses: this.methodResponses,
+//            MethodResponses: this.methodResponses,
         };
     }
 
@@ -148,29 +151,43 @@ export abstract class Method extends Resource {
     abstract get integrationType();
 
     abstract get integrationUri();
-
+/*
     get integrationResponses() {
         return statusCodes[this.httpMethod].map((statusCode):any => {
             if( 200 <= statusCode && statusCode < 300 )
                 return {
                     StatusCode: statusCode,
                     SelectionPattern: undefined,
-                    ResponseParameters: defaultResponseParameters,
-                    ResponseTemplates: defaultResponseTemplates
+                    ResponseParameters: {
+                    },
+                    ResponseTemplates: {
+                        'text/http': `#set($inputRoot = $input.path('$'))\n$inputRoot.content`,
+                        'application/json': `#set($inputRoot = $input.path('$'))\n$inputRoot.content`,
+                    }
                 };
             else if( 300 <= statusCode && statusCode < 400 )
                 return {
                     StatusCode: statusCode,
                     SelectionPattern: 'http.*',
-                    ResponseParameters: redirectionResponseParameters,
-                    ResponseTemplates: redirectionResponseTemplates,
+                    ResponseParameters: {
+                        'method.response.header.location' : "integration.response.body.errorMessage",
+                    },
+                    ResponseTemplates: {
+                        'text/html' : "",
+                        'application/json' : "",
+                    },
                 };
             else if( 400 <= statusCode )
                 return {
                     StatusCode: statusCode,
                     SelectionPattern: `\\[${statusCode},.*`,
-                    ResponseParameters: errorResponseParameters,
-                    ResponseTemplates: errorResponseTemplates,
+                    ResponseParameters: {
+
+                    },
+                    ResponseTemplates: {
+                        'text/http': `#set($_body = $util.parseJson($input.path('$.errorMessage'))[1])\n$_body.content`,
+                        'application/json': `#set($_body = $util.parseJson($input.path('$.errorMessage'))[1])\n$_body.content`,
+                    },
                 };
         });
     }
@@ -178,13 +195,18 @@ export abstract class Method extends Resource {
     get methodResponses() {
         return statusCodes[this.httpMethod].map((statusCode):any => {
             return {
-               StatusCode : statusCode,
-               ResponseModels : responseModels,
-               ResponseParameters : responseParameters
+               StatusCode: statusCode,
+               ResponseModels: {
+                   'text/html': 'Empty',
+                   'application/json': 'Empty',
+               },
+               ResponseParameters: {
+                   'method.response.header.location': false,
+               }
            };
         });
     }
-
+*/
 }
 
 
@@ -207,7 +229,7 @@ export class LambdaMethod extends Method {
     }
 
     get integrationType() {
-        return 'AWS';
+        return 'AWS_PROXY'; // AWS_PROXY
     }
 
     get integrationUri() {
@@ -219,10 +241,24 @@ export class LambdaMethod extends Method {
 
 }
 
+export interface DeploymentParams {
+    variables?: {
+        [varName:string]: string
+    }
+}
+
 
 export class Deployment extends Resource {
-    constructor(public restApi: RestApi, public dependsOn: Resource[]) {
+    variables: {
+        [varName:string]: string
+    } = {};
+
+    constructor(public restApi: RestApi, params: DeploymentParams = {}) {
         super(restApi.stack);
+        Object.assign(this, params);
+    }
+    get dependsOn(){
+        return this.restApi.allMethods;
     }
     get type() {
         return 'AWS::ApiGateway::Deployment';
@@ -234,6 +270,9 @@ export class Deployment extends Resource {
         return {
             RestApiId: this.restApi.ref,
             StageName: `${pascalCase(this.stack.stage)}`,
+            StageDescription: {
+                Variables: this.variables
+            }
         };
     }
 }

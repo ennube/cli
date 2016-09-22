@@ -82,7 +82,7 @@ export class Aws implements Manager  {
                         },
                         Action: ["sts:AssumeRole"]
                     }]
-                },
+                }
             });
 
             lambdas[serviceName] = new lambda.Function(stack, serviceDescriptor, role);
@@ -112,18 +112,30 @@ export class Aws implements Manager  {
         //
 
 
+        let apiGatewayRoles = [];
+        for( let gatewayName in rt.http.allGateways ) {
 
-
-        for( let gatewayId in rt.http.allGateways ) {
-
-            let gateway = rt.http.allGateways[gatewayId];
+            let gateway = rt.http.allGateways[gatewayName];
             let restApi = new agw.RestApi(stack, gateway);
+
+            let role = new iam.Role(stack, {
+                name: `${gatewayName}Execution`,
+                policyDocument: {
+                    Version: "2012-10-17",
+                    Statement: [{
+                        Effect: "Allow",
+                        Principal: {
+                            Service: ["lambda.amazonaws.com"]
+                        },
+                        Action: ["sts:AssumeRole"]
+                    }]
+                },
+            });
+            apiGatewayRoles.push(role);
 
             let endpoints: {
                 [url:string]: agw.Endpoint
             } = { };
-
-            let methods = [];
 
             for( let url in gateway.endpoints ) {
                 let httpMethods = gateway.endpoints[url];
@@ -140,7 +152,7 @@ export class Aws implements Manager  {
                     urlParts.push(urlPart)
                     let endpointUrl = urlParts.join('/');
 
-                    let paramMatch = /\{([\-\w]+)\}/.exec(urlPart);
+                    let paramMatch = /\{([\-\w]+)(\+)?\}/.exec(urlPart);
                     if( paramMatch )
                         urlParams.push(paramMatch[1]);
 
@@ -163,21 +175,35 @@ export class Aws implements Manager  {
                     });
 
                     new lambda.Permission(stack, {
-                        "function": __function,
-                        principal: "apigateway.amazonaws.com",
-                        action: "lambda:InvokeFunction"
+                        'function': __function,
+                        principal: 'apigateway.amazonaws.com',
+                        action: 'lambda:InvokeFunction',
                     });
-
-                    methods.push(lambdaMethod);
-
                 }
-
             }
 
-            new agw.Deployment(restApi, methods);
+            new agw.Deployment(restApi, {
+                variables: {
+                    gatewayName
+                }
+            });
 
         }
 
+        if(apiGatewayRoles.length)
+            new iam.Policy(stack, 'LambdaInvokeFunction', {
+                roles: apiGatewayRoles,
+                policyDocument: {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Action": "lambda:InvokeFunction",
+                            "Resource": "*"
+                        }
+                    ]
+                }
+            });
 
 
         //
@@ -190,6 +216,8 @@ export class Aws implements Manager  {
         return stack;
     }
 
+
+////////////////////////////////////////////////////////////////////////////////
 
     uploadDeploymentFiles(stack: Stack) {
         console.log(`uploading to ${stack.deploymentBucket}`);
