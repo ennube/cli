@@ -42,6 +42,12 @@ var Aws = (function () {
             .then(function (stack) { return _this.uploadDeploymentFiles(stack); })
             .then(function (stack) { return _this.updateStack(stack); });
     };
+    Aws.prototype.reDeploy = function (shell, project, builder) {
+        var _this = this;
+        return Promise.resolve()
+            .then(function () { return _this.createStack(project); })
+            .then(function (stack) { return _this.updateStack(stack); });
+    };
     Aws.prototype.createStack = function (project) {
         project.ensureLoaded();
         var stack = new cloudformation_1.Stack(project, {
@@ -244,11 +250,17 @@ var Aws = (function () {
         }); });
     };
     __decorate([
-        shell_1.command('deploy'), 
+        shell_1.command('deploy', 'build, pack, synchronizes and deploy the project'), 
         __metadata('design:type', Function), 
         __metadata('design:paramtypes', [shell_1.Shell, project_1.Project, builder_1.Builder]), 
         __metadata('design:returntype', void 0)
     ], Aws.prototype, "deploy", null);
+    __decorate([
+        shell_1.command('redeploy', 'deploy the project without building nor syncing'), 
+        __metadata('design:type', Function), 
+        __metadata('design:paramtypes', [shell_1.Shell, project_1.Project, builder_1.Builder]), 
+        __metadata('design:returntype', void 0)
+    ], Aws.prototype, "reDeploy", null);
     __decorate([
         shell_1.command('stack'), 
         __metadata('design:type', Function), 

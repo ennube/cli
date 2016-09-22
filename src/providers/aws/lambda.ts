@@ -22,7 +22,7 @@ export class Function extends cf.Resource {
             Runtime: 'nodejs4.3',
             MemorySize: this.serviceDescriptor.memoryLimit,
             Timeout: this.serviceDescriptor.timeLimit,
-            Handler: `${this.name}.dispatcher`,
+            Handler: `${this.name}.mainEntry`,
             Role: this.role.getAtt('Arn'),
             Code: {
                 //S3Bucket: ref(referencia a un bucket por parametro),

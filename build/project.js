@@ -95,10 +95,10 @@ var Project = (function () {
                     serviceClass === module_1.exports[serviceClass.name]) {
                     console.log(("service " + serviceClass.name + " found in ") +
                         module_1.filename.substr(this.outDir.length));
-                    if (!('dispatcher' in module_1.exports) ||
-                        module_1.exports.dispatcher !== runtime_1.dispatcher)
+                    if (!('mainEntry' in module_1.exports) ||
+                        module_1.exports.mainEntry !== runtime_1.mainEntry)
                         throw new Error(("Service module " + moduleId + " must ") +
-                            "export {dispatcher} from '@ennube/runtime'");
+                            "export {mainEntry} from '@ennube/runtime'");
                     this.serviceModules[serviceName] = module_1.filename;
                 }
             }

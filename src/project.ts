@@ -1,5 +1,5 @@
 import {Shell, Manager, manager, command} from './shell';
-import {allServiceDescriptors, dispatcher} from '@ennube/runtime';
+import {allServiceDescriptors, mainEntry} from '@ennube/runtime';
 import * as fs from 'fs-extra';
 
 export type TemplateCollection = {
@@ -115,10 +115,10 @@ export class Project implements Manager {
                     console.log(`service ${serviceClass.name} found in ` +
                                 module.filename.substr(this.outDir.length));
 
-                    if( !('dispatcher' in module.exports) ||
-                        module.exports.dispatcher !== dispatcher )
+                    if( !('mainEntry' in module.exports) ||
+                        module.exports.mainEntry !== mainEntry )
                         throw new Error(`Service module ${moduleId} must ` +
-                            `export {dispatcher} from '@ennube/runtime'`);
+                            `export {mainEntry} from '@ennube/runtime'`);
 
                     this.serviceModules[serviceName] = module.filename;
                 }

@@ -37,7 +37,7 @@ export class Aws implements Manager  {
 
 
 
-    @command('deploy')
+    @command('deploy', 'build, pack, synchronizes and deploy the project')
     deploy(shell:Shell, project: Project, builder: Builder) {
 
         return builder.build(shell, project)
@@ -48,6 +48,19 @@ export class Aws implements Manager  {
 
         .then( (stack) => this.updateStack(stack) )
     }
+
+    @command('redeploy', 'deploy the project without building nor syncing')
+    reDeploy(shell:Shell, project: Project, builder: Builder) {
+
+        return Promise.resolve()
+
+        .then( () => this.createStack(project) )
+
+//        .then( (stack) => this.uploadDeploymentFiles(stack) )
+
+        .then( (stack) => this.updateStack(stack) )
+    }
+
 
 
     @command('stack')
