@@ -13,27 +13,75 @@ var project_1 = require('./project');
 var child_process = require('child_process');
 var webpack = require('webpack');
 var fsx = require('fs-extra');
+var pug = require('pug');
 var archiver = require('archiver');
 var Builder = (function () {
-    function Builder() {
+    function Builder(shell, project) {
+        this.shell = shell;
+        this.project = project;
     }
-    Builder.prototype.build = function (shell, project) {
-        return Promise.resolve()
-            .then(function () { return new Promise(function (resolve, reject) {
-            shell.task("Running Typescript compiler");
+    Builder.prototype.build = function () {
+        var _this = this;
+        return this.runTsc()
+            .then(function () { return _this.compileTemplates(); })
+            .then(function () { return _this.executeWebpack(); })
+            .then(function () { return _this.archiveServices(); });
+    };
+    Builder.prototype.runTsc = function () {
+        var _this = this;
+        return new Promise(function (resolve, reject) {
+            _this.shell.task("Running Typescript compiler");
             child_process.exec('tsc', function (err, stdout, stderr) {
                 if (err)
-                    shell.rejectTask(reject, stderr);
+                    _this.shell.rejectTask(reject, stderr);
                 else
-                    shell.resolveTask(resolve, stdout);
+                    _this.shell.resolveTask(resolve, stdout);
             });
-        }); })
-            .then(function () { return project.ensureLoaded(); })
-            .then(function () { return new Promise(function (resolve, reject) {
-            shell.task('Running webpack');
+        });
+    };
+    Builder.prototype.compileTemplates = function () {
+        var _this = this;
+        var templateDir = this.project.sourceDir;
+        var outDir = this.project.outDir;
+        return new Promise(function (resolve, reject) {
+            console.log('Compiling pugs templates...');
+            var pugOptions = {
+                basedir: templateDir,
+                inlineRuntimeFunctions: true,
+            };
+            fsx['walk'](_this.project.sourceDir)
+                .on('data', function (file) {
+                var match = /(.*)?\/([\w]+)\.([\w]+)\.pug/.exec(file.path.substr(templateDir.length));
+                console.log(file.path.substr(templateDir.length));
+                if (match) {
+                    var fileName = match[0];
+                    var jsModule = (match[1] || '') + "/" + match[2];
+                    var functionName = match[3];
+                    console.log(("Attaching '" + functionName + "' template ") +
+                        ("from " + fileName + " to " + jsModule));
+                    var compiled = pug.compileFileClient(file.path, Object.assign({
+                        filename: fileName,
+                    }, pugOptions));
+                    fsx.appendFileSync(outDir + "/" + jsModule + ".js", ("\n/* pug template " + fileName + "*/\n") +
+                        ("function " + functionName + "(locals) {\n") +
+                        ("   " + compiled + "\n") +
+                        "   return template(locals);\n" +
+                        "}\n");
+                }
+            })
+                .on('end', function () {
+                resolve();
+            });
+        });
+    };
+    Builder.prototype.executeWebpack = function () {
+        var _this = this;
+        this.project.ensureLoaded();
+        return new Promise(function (resolve, reject) {
+            _this.shell.task('Executing webpack');
             var entrySet = {};
-            for (var serviceName in project.serviceModules) {
-                var serviceFileName = project.serviceModules[serviceName];
+            for (var serviceName in _this.project.serviceModules) {
+                var serviceFileName = _this.project.serviceModules[serviceName];
                 entrySet[serviceName] = [serviceFileName];
             }
             var compiler = webpack({
@@ -47,8 +95,8 @@ var Builder = (function () {
                     new webpack.optimize.DedupePlugin(),
                 ],
                 output: {
-                    libraryTarget: project.tsc.compilerOptions.module,
-                    path: project.packingDir,
+                    libraryTarget: _this.project.tsc.compilerOptions.module,
+                    path: _this.project.packingDir,
                     filename: "[name]/[name].js",
                 },
                 module: {
@@ -57,42 +105,43 @@ var Builder = (function () {
             });
             compiler.run(function (err, stats) {
                 if (err)
-                    shell.rejectTask(reject, err);
+                    _this.shell.rejectTask(reject, err);
                 else
-                    shell.resolveTask(resolve, stats);
+                    _this.shell.resolveTask(resolve, stats);
             });
-        }); })
-            .then(function () {
-            console.log('Packing services...');
-            fsx.ensureDirSync(project.deploymentDir);
-            var promises = [];
-            var _loop_1 = function(serviceName) {
-                promises.push(new Promise(function (resolve, reject) {
-                    var archive = archiver.create('zip', {});
-                    var output = project.deploymentDir + "/" + serviceName + ".zip";
-                    var stream = fsx.createWriteStream(output);
-                    stream.on('close', function () { return resolve(output); });
-                    archive.on('error', function (error) { return reject(error); });
-                    archive.pipe(stream);
-                    archive.directory(project.packingDir + "/" + serviceName, '/', {});
-                    archive.finalize();
-                }));
-            };
-            for (var serviceName in project.serviceModules) {
-                _loop_1(serviceName);
-            }
-            return Promise.all(promises);
         });
+    };
+    Builder.prototype.archiveServices = function () {
+        var _this = this;
+        console.log('Packing services...');
+        fsx.ensureDirSync(this.project.deploymentDir);
+        var promises = [];
+        var _loop_1 = function(serviceName) {
+            promises.push(new Promise(function (resolve, reject) {
+                var archive = archiver.create('zip', {});
+                var output = _this.project.deploymentDir + "/" + serviceName + ".zip";
+                var stream = fsx.createWriteStream(output);
+                stream.on('close', function () { return resolve(output); });
+                archive.on('error', function (error) { return reject(error); });
+                archive.pipe(stream);
+                archive.directory(_this.project.packingDir + "/" + serviceName, '/', {});
+                archive.finalize();
+            }));
+        };
+        for (var serviceName in this.project.serviceModules) {
+            _loop_1(serviceName);
+        }
+        return Promise.all(promises);
     };
     __decorate([
         shell_1.command('build'), 
         __metadata('design:type', Function), 
-        __metadata('design:paramtypes', [shell_1.Shell, project_1.Project]), 
+        __metadata('design:paramtypes', []), 
         __metadata('design:returntype', void 0)
     ], Builder.prototype, "build", null);
     Builder = __decorate([
-        shell_1.manager(), 
-        __metadata('design:paramtypes', [])
+        shell_1.manager(shell_1.Shell, project_1.Project), 
+        __metadata('design:paramtypes', [shell_1.Shell, project_1.Project])
     ], Builder);
     return Builder;
 }());

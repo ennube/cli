@@ -14,6 +14,7 @@ export declare class Project implements Manager {
     tsc: {
         compilerOptions: {
             outDir: string;
+            rootDir: string;
             module: string;
         };
     };
@@ -29,6 +30,7 @@ export declare class Project implements Manager {
     constructor(shell: Shell);
     readonly name: string;
     readonly mainModuleFileName: string;
+    readonly sourceDir: string;
     readonly outDir: string;
     readonly buildDir: string;
     readonly packingDir: string;

@@ -1,26 +1,48 @@
 # Ennube
 
-**Currently in 0.1-alpha status.**
-A service-oriented architecture for the development of cloud based web
-applications. Ennube integrates directly with Typescript and Amazon Web
-Services, creating a bridge between language and platform. See this:
+Ennube is a [Typescript] web framework that faces the development of
+applications that will be run as multiple [AWS Lambda] microservices. For this,
+ennube provides an command line interface to perform simple construction and
+deployment of the application, and a runtime library that lets meet ennube the
+needs of the resource pile of your application. Do not need to deal with
+configuration files for it, enube meet the needs of your application looking
+into it, then recreate the cloud where it streak across the sky.
+
+With a few lines of code your application will be deployed in the cloud
+automatically. Watch this:
 
 ```typescript
+
+import {http} from '@ennube/runtime';
+
+let web = new http.Gateway('web');
+
 export class IndexHTTPService {
-    @http.GET('web', '/')
-    indexPageHandler(request, response) {
+
+    @web.GET('/')
+    @web.GET('/{route+}')
+    index(req: http.Request, res: http.Response) {
+        res.send(`Your are browsing ${req.params.route}`);
     }
+
 }
 ```
+`> ennube deploy`
 
+Thats all, your application are online, zero config, no servers.
+**Cloud application development was never easier**. ;)
 
-## integrated services and features
+## Features
 
-- [x] The application code is segmented in microservices to be deployed as
-lambda functions.
-- [x] Your application can declare http endpoints using Typescript decorators,
-these endpoints will be  represented in the service gateway api.
-- [x] Storage buckets used in your application code will be added to your cloud
-stack, the application can access the resource through the ennube runtime layer.
+- Precompiled [Pug] templates be injected into your source code, you only have
+to invoke them as a function to generate the html response.
+- The source code of your application is segmented into microservices, packaged
+and deployed automatically.
+- The stack of the resources needed to run the application is created or updated
+automatically deployments.
 
-**all this automatically**
+**0.2 beta**: we have just started, do not use this software, even.
+
+[Typescript]: <https://www.typescriptlang.org/index.html>
+[AWS Lambda]: <https://aws.amazon.com/lambda/details/>
+[Pug]: <https://pugjs.org>

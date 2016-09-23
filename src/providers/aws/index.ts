@@ -40,7 +40,7 @@ export class Aws implements Manager  {
     @command('deploy', 'build, pack, synchronizes and deploy the project')
     deploy(shell:Shell, project: Project, builder: Builder) {
 
-        return builder.build(shell, project)
+        return builder.build()
 
         .then( () => this.createStack(project) )
 

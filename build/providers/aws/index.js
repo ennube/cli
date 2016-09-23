@@ -37,7 +37,7 @@ var Aws = (function () {
     }
     Aws.prototype.deploy = function (shell, project, builder) {
         var _this = this;
-        return builder.build(shell, project)
+        return builder.build()
             .then(function () { return _this.createStack(project); })
             .then(function (stack) { return _this.uploadDeploymentFiles(stack); })
             .then(function (stack) { return _this.updateStack(stack); });

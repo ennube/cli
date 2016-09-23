@@ -41,10 +41,14 @@ export function manager(...paramTypes: ManagerClass[]) {
         let managerEntry = allManagers[managerClass.name];
         if( managerEntry === undefined )
             managerEntry = allManagers[managerClass.name] = {
-                commands: { },
+                managerClass,
                 paramTypes,
-                managerClass
+                commands: {}
             };
+
+        Object.assign(managerEntry, {
+            paramTypes,
+        });
     }
 }
 

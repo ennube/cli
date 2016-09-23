@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var shell_1 = require('./shell');
 var runtime_1 = require('@ennube/runtime');
 var fs = require('fs-extra');
+var _ = require('lodash');
 var Project = (function () {
     function Project(shell) {
         this.serviceModules = {};
@@ -48,9 +49,16 @@ var Project = (function () {
         enumerable: true,
         configurable: true
     });
+    Object.defineProperty(Project.prototype, "sourceDir", {
+        get: function () {
+            return _.trimEnd(this.directory + "/" + this.tsc.compilerOptions.rootDir, '/');
+        },
+        enumerable: true,
+        configurable: true
+    });
     Object.defineProperty(Project.prototype, "outDir", {
         get: function () {
-            return this.directory + "/" + this.tsc.compilerOptions.outDir;
+            return _.trimEnd(this.directory + "/" + this.tsc.compilerOptions.outDir, '/');
         },
         enumerable: true,
         configurable: true

@@ -4,47 +4,103 @@ import {Project} from './project';
 import * as child_process from 'child_process';
 import * as webpack from 'webpack';
 import * as fsx from 'fs-extra';
+import * as pug from 'pug';
 
 const archiver = require('archiver');
 
 
-@manager()
+@manager(Shell, Project)
 export class Builder implements Manager {
+    constructor(public shell:Shell, public project:Project){
+    }
 
     @command('build')
-    build(shell:Shell, project: Project) {
+    build() {
 
-        return Promise.resolve()
+        return this.runTsc()
+        .then( () => this.compileTemplates() )
+        .then( () => this.executeWebpack() )
+        .then( () => this.archiveServices() );
 
-        // COMPILE THE PROJECT
+    }
 
-        .then( () => new Promise((resolve, reject) => {
-            shell.task(`Running Typescript compiler`);
+    runTsc() {
+        return new Promise((resolve, reject) => {
+            this.shell.task(`Running Typescript compiler`);
+
+            //  tsc checks
 
             child_process.exec('tsc', (err, stdout, stderr) => {
                 if(err)
-                    shell.rejectTask(reject, stderr);
+                    this.shell.rejectTask(reject, stderr);
                 else
-                    shell.resolveTask(resolve, stdout);
+                    this.shell.resolveTask(resolve, stdout);
             })
-        }))
+        })
+    }
 
-        // LOAD PROJECT IN MEMORY
+    compileTemplates() {
+        let templateDir = this.project.sourceDir;
+        let outDir = this.project.outDir;
 
-        .then( () => project.ensureLoaded() )
+        return new Promise((resolve, reject) => {
+            console.log('Compiling pugs templates...');
 
-        // RUN WEBPACK
+            let pugOptions = {
+                basedir: templateDir,
+                inlineRuntimeFunctions: true,
+            };
 
-        .then( () => new Promise((resolve, reject) => {
+            fsx['walk'](this.project.sourceDir)
+            .on('data', function (file) {
+                let match = /(.*)?\/([\w]+)\.([\w]+)\.pug/.exec(
+                    file.path.substr(templateDir.length));
 
-            shell.task('Running webpack');
+                console.log(file.path.substr(templateDir.length));
+
+                if( match ) {
+                    let fileName = match[0];
+                    let jsModule = `${match[1]||''}/${match[2]}`;
+                    let functionName = match[3];
+
+                    console.log(`Attaching '${functionName}' template `+
+                                `from ${fileName} to ${jsModule}`);
+
+                    let compiled = pug.compileFileClient(file.path, Object.assign({
+                    //let compiled = pug.compileFile(file.path, Object.assign({
+                        filename: fileName,
+                        //name: functionName
+                    }, pugOptions));
+
+                    fsx.appendFileSync(`${outDir}/${jsModule}.js`,
+                        `\n/* pug template ${fileName}*/\n`+
+                        `function ${functionName}(locals) {\n` +
+                        `   ${compiled}\n` +
+                        `   return template(locals);\n` +
+                        `}\n`
+                    );
+
+                }
+            })
+            .on('end', function () {
+                resolve();
+            })
+        });
+    }
+
+
+    executeWebpack() {
+        this.project.ensureLoaded();
+        return new Promise((resolve, reject) => {
+
+            this.shell.task('Executing webpack');
 
             let entrySet: {
                 [serviceName:string]: string[]
             } = { };
 
-            for(let serviceName in project.serviceModules) {
-                let serviceFileName = project.serviceModules[serviceName];
+            for(let serviceName in this.project.serviceModules) {
+                let serviceFileName = this.project.serviceModules[serviceName];
                 entrySet[serviceName] = [serviceFileName];
             }
 
@@ -68,8 +124,8 @@ export class Builder implements Manager {
                     })*/
                 ],
                 output: {
-                    libraryTarget: project.tsc.compilerOptions.module, // TODO: desde project.tsc
-                    path: project.packingDir,
+                    libraryTarget: this.project.tsc.compilerOptions.module, // TODO: desde this.project.tsc
+                    path: this.project.packingDir,
                     filename: "[name]/[name].js",
                 },
                 module: {
@@ -83,74 +139,35 @@ export class Builder implements Manager {
 
             compiler.run((err, stats) => {
                 if(err)
-                    shell.rejectTask(reject, err);
+                    this.shell.rejectTask(reject, err);
                 else
-                    shell.resolveTask(resolve, stats);
+                    this.shell.resolveTask(resolve, stats);
             });
-        }))
-
-        // Archve all services
-
-        .then( () => {
-            console.log('Packing services...');
-
-            fsx.ensureDirSync(project.deploymentDir);
-
-            let promises = [];
-            for(let serviceName in project.serviceModules) {
-                promises.push(new Promise((resolve, reject) => {
-
-                    let archive = <any>archiver.create('zip', {});
-                    let output = `${project.deploymentDir}/${serviceName}.zip`
-                    let stream = fsx.createWriteStream(output);
-
-                    stream.on('close', () => resolve(output))
-                    archive.on('error', (error) => reject(error));
-                    archive.pipe(stream);
-                    archive.directory(`${project.packingDir}/${serviceName}`, '/', {});
-                    archive.finalize();
-                }));
-            }
-
-            return Promise.all(promises);
-
-        });
-
-    }
-
-
-/*
-    @command()
-    buildTemplates() {
-        console.log('Collecting templates...');
-        return this.collectTemplates(
-            `${__dirname}/../../request-templates`,
-            this.project.templates.request);
-
-    }
-
-    collectTemplates(directory:string, collection: TemplateCollection){
-        directory = fsx.realpathSync(directory);
-
-        return new Promise((resolve, reject) => {
-            fsx['walk'](directory)
-            .on('data', function (file) {
-                let match = /\/(\w+\/\w+)\/(.*)\.vtl/.exec(
-                    file.path.substr(directory.length));
-                if( match ) {
-                    console.log(`Template found ${match[0]}`);
-                    if( collection[match[1]] === undefined )
-                        collection[match[1]] = {}
-                    collection[match[1]][match[2]] = fsx.readFileSync(file.path, {encoding:'utf8'});
-                }
-
-            })
-            .on('end', function () {
-                resolve();
-            })
-
         });
     }
-*/
+
+    archiveServices() {
+        console.log('Packing services...');
+
+        fsx.ensureDirSync(this.project.deploymentDir);
+
+        let promises = [];
+        for(let serviceName in this.project.serviceModules) {
+            promises.push(new Promise((resolve, reject) => {
+
+                let archive = <any>archiver.create('zip', {});
+                let output = `${this.project.deploymentDir}/${serviceName}.zip`
+                let stream = fsx.createWriteStream(output);
+
+                stream.on('close', () => resolve(output))
+                archive.on('error', (error) => reject(error));
+                archive.pipe(stream);
+                archive.directory(`${this.project.packingDir}/${serviceName}`, '/', {});
+                archive.finalize();
+            }));
+        }
+
+        return Promise.all(promises);
+    }
 
 }

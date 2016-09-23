@@ -29,10 +29,13 @@ function manager() {
         var managerEntry = exports.allManagers[managerClass.name];
         if (managerEntry === undefined)
             managerEntry = exports.allManagers[managerClass.name] = {
-                commands: {},
+                managerClass: managerClass,
                 paramTypes: paramTypes,
-                managerClass: managerClass
+                commands: {}
             };
+        Object.assign(managerEntry, {
+            paramTypes: paramTypes,
+        });
     };
 }
 exports.manager = manager;

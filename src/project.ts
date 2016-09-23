@@ -1,6 +1,7 @@
 import {Shell, Manager, manager, command} from './shell';
 import {allServiceDescriptors, mainEntry} from '@ennube/runtime';
 import * as fs from 'fs-extra';
+import * as _ from 'lodash';
 
 export type TemplateCollection = {
     [mimeType:string]: {
@@ -19,6 +20,7 @@ export class Project implements Manager {
     tsc: {
         compilerOptions: {
             outDir: string;
+            rootDir: string;
             module: string; // for webpack target
         };
     };
@@ -73,8 +75,11 @@ export class Project implements Manager {
             throw new Error('you must ensureNpmLoaded before get project.mainModuleFileName');
         return `${this.directory}/${this.npm.main}`;
     }
+    get sourceDir() {
+        return _.trimEnd(`${this.directory}/${this.tsc.compilerOptions.rootDir}`, '/');
+    }
     get outDir() {
-        return `${this.directory}/${this.tsc.compilerOptions.outDir}`;
+        return _.trimEnd(`${this.directory}/${this.tsc.compilerOptions.outDir}`, '/');
     }
     get buildDir() {
         return `${this.directory}/build`;
