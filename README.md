@@ -13,7 +13,7 @@ automatically. Watch this:
 
 
 ```typescript
-// app.js
+// index.js
 import {http} from '@ennube/runtime';
 
 let web = new http.Gateway('web');
@@ -26,15 +26,16 @@ export class IndexHTTPService {
     @web.GET('/{route+}')
     index(req: http.Request, res: http.Response) {
         res.send(page({
-              route: req.route
+              route: req.params.route
         }));
     }
 
 }
+
 ```
 
 ```Pug
-// app.page.pug
+// index.page.pug
 doctype html
 html(lang='en')
     head

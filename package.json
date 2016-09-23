@@ -1,6 +1,6 @@
 {
   "name": "@ennube/shell",
-  "version": "0.0.2",
+  "version": "0.0.2-beta",
   "description": "Service-oriented architecture for cloud based web development.",
   "repository": "git@github.com:ennube/shell.git",
   "scripts": {
@@ -30,7 +30,7 @@
     "typescript": "^1.8.10"
   },
   "dependencies": {
-    "@ennube/runtime": "*",
+    "@ennube/runtime": "0.2-beta",
     "archiver": "^1.1.0",
     "aws-sdk": "^2.6.1",
     "chalk": "^1.1.3",
