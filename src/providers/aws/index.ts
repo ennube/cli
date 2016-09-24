@@ -24,6 +24,8 @@ export class Aws implements Manager  {
     @command('deploy', 'build, pack, synchronizes and deploy the project')
     deploy(shell:Shell, project: Project, builder: Builder) {
 
+        let existingBuckets: {};
+
         return builder.build()
         .then( () => this.createStack(project) )
 
@@ -43,6 +45,8 @@ export class Aws implements Manager  {
         )
 
         .then( (stack) => stack.update() )
+
+        // now syncs the static files...
     }
 
 
