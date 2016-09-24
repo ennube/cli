@@ -1,6 +1,10 @@
 import {Project} from '../../project';
+import {send} from './common';
 import {pascalCase, paramCase} from 'change-case';
 import * as _ from 'lodash';
+
+const aws = require('aws-sdk');
+
 
 export namespace fn {
 
@@ -32,6 +36,7 @@ export class Stack {
     deploymentBucket: string;
     deploymentPrefix: string;
     resourceList: Resource[] = [];
+    capabilities: string[] = ['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'];
 
 /*
     resources: {
@@ -69,9 +74,55 @@ export class Stack {
     }
 
 
-    // resources
-    // by class
-    // by id
+
+    // stack.update()
+    update(onFailure:string='ROLLBACK') {
+
+        let cf = new aws.CloudFormation({ region: this.region });
+
+        return new Promise((resolve, reject) => {
+            send( () => cf.describeStacks({ StackName: this.name }))
+            .then((x) => resolve(true))
+            .catch((x) => x.message.endsWith('does not exist')?
+                resolve(false):
+                reject(x))
+        })
+
+        .then( (exists) => exists? {
+            name: 'Updating stack',
+            method: 'updateStack',
+            successState: 'stackUpdateComplete'
+        }: {
+            name: 'Creating stack',
+            method: 'createStack',
+            successState: 'stackCreateComplete'
+        })
+
+        // Send update task
+        .then( (task) => {
+            console.log(task.name);
+            return task;
+        } )
+
+        .then( (task) =>
+            send( () => cf[task.method]({
+                StackName: this.name,
+                TemplateBody: JSON.stringify(this.template),
+                Capabilities: this.capabilities,
+//                OnFailure: onFailure
+            } ))
+            .then( () => task )
+        )
+
+        .then( (task) => send( () =>
+            cf.waitFor(task.successState, {
+                StackName: this.name
+            })
+        ))
+
+        //.then( () => resolve() )
+        //.catch( (x) => reject(x) )
+    }
 }
 
 

@@ -1,6 +1,8 @@
 "use strict";
+var common_1 = require('./common');
 var change_case_1 = require('change-case');
 var _ = require('lodash');
+var aws = require('aws-sdk');
 var fn;
 (function (fn) {
     function ref(id) {
@@ -26,6 +28,7 @@ var Stack = (function () {
         this.region = 'eu-west-1';
         this.stage = 'development';
         this.resourceList = [];
+        this.capabilities = ['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'];
         Object.assign(this, params);
     }
     Object.defineProperty(Stack.prototype, "name", {
@@ -57,6 +60,44 @@ var Stack = (function () {
     });
     Stack.prototype.add = function (item) {
         this.resourceList.push(item);
+    };
+    Stack.prototype.update = function (onFailure) {
+        var _this = this;
+        if (onFailure === void 0) { onFailure = 'ROLLBACK'; }
+        var cf = new aws.CloudFormation({ region: this.region });
+        return new Promise(function (resolve, reject) {
+            common_1.send(function () { return cf.describeStacks({ StackName: _this.name }); })
+                .then(function (x) { return resolve(true); })
+                .catch(function (x) { return x.message.endsWith('does not exist') ?
+                resolve(false) :
+                reject(x); });
+        })
+            .then(function (exists) { return exists ? {
+            name: 'Updating stack',
+            method: 'updateStack',
+            successState: 'stackUpdateComplete'
+        } : {
+            name: 'Creating stack',
+            method: 'createStack',
+            successState: 'stackCreateComplete'
+        }; })
+            .then(function (task) {
+            console.log(task.name);
+            return task;
+        })
+            .then(function (task) {
+            return common_1.send(function () { return cf[task.method]({
+                StackName: _this.name,
+                TemplateBody: JSON.stringify(_this.template),
+                Capabilities: _this.capabilities,
+            }); })
+                .then(function () { return task; });
+        })
+            .then(function (task) { return common_1.send(function () {
+            return cf.waitFor(task.successState, {
+                StackName: _this.name
+            });
+        }); });
     };
     return Stack;
 }());

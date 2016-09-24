@@ -1,4 +1,5 @@
 /// <reference types="lodash" />
+/// <reference types="core-js" />
 import { Project } from '../../project';
 import * as _ from 'lodash';
 export declare namespace fn {
@@ -25,6 +26,7 @@ export declare class Stack {
     deploymentBucket: string;
     deploymentPrefix: string;
     resourceList: Resource[];
+    capabilities: string[];
     constructor(project: Project, params: StackParams);
     readonly name: string;
     readonly template: {
@@ -37,6 +39,7 @@ export declare class Stack {
         Outputs: {};
     };
     add(item: Resource): void;
+    update(onFailure?: string): Promise<{}>;
 }
 export declare abstract class Resource {
     stack: Stack;

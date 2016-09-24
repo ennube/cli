@@ -7,7 +7,6 @@ var __extends = (this && this.__extends) || function (d, b) {
 var cloudformation_1 = require('./cloudformation');
 var change_case_1 = require('change-case');
 var _ = require('lodash');
-;
 var RestApi = (function (_super) {
     __extends(RestApi, _super);
     function RestApi(stack, gateway) {
@@ -82,12 +81,6 @@ var Endpoint = (function (_super) {
     return Endpoint;
 }(cloudformation_1.Resource));
 exports.Endpoint = Endpoint;
-var statusCodes = {
-    GET: [200, 308, 400, 401, 403, 404, 500],
-    POST: [201, 303, 400, 401, 403, 404, 500],
-    PUT: [204, 303, 400, 401, 403, 404, 500],
-    DELETE: [204, 303, 400, 401, 403, 404, 500],
-};
 var Method = (function (_super) {
     __extends(Method, _super);
     function Method(restApi, parent, params) {

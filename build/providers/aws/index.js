@@ -13,40 +13,35 @@ var project_1 = require('../../project');
 var builder_1 = require('../../builder');
 var rt = require('@ennube/runtime');
 var cloudformation_1 = require('./cloudformation');
+var s3 = require('./s3');
 var lambda = require('./lambda');
 var iam = require('./iam');
 var agw = require('./apigateway');
-var YAML = require('js-yaml');
 var _ = require('lodash');
 var change_case_1 = require('change-case');
-var aws = require('aws-sdk');
-var s3 = require('s3');
-var ProgressBar = require('progress');
-var chalk = require('chalk');
-function send(request) {
-    return new Promise(function (resolve, reject) {
-        request()
-            .on('success', function (response) { return resolve(response); })
-            .on('error', function (response) { return reject(response); })
-            .send();
-    });
-}
 var Aws = (function () {
-    function Aws(shell) {
+    function Aws(shell, project) {
         this.shell = shell;
+        this.project = project;
     }
     Aws.prototype.deploy = function (shell, project, builder) {
         var _this = this;
         return builder.build()
             .then(function () { return _this.createStack(project); })
-            .then(function (stack) { return _this.uploadDeploymentFiles(stack); })
-            .then(function (stack) { return _this.updateStack(stack); });
-    };
-    Aws.prototype.reDeploy = function (shell, project, builder) {
-        var _this = this;
-        return Promise.resolve()
-            .then(function () { return _this.createStack(project); })
-            .then(function (stack) { return _this.updateStack(stack); });
+            .then(function (stack) {
+            return s3.listBuckets()
+                .then(function (existent) {
+                return s3.syncBucket({
+                    sourceDirectory: stack.project.deploymentDir,
+                    defaultRegion: stack.region,
+                    bucketName: stack.deploymentBucket,
+                    destinationDirectory: stack.deploymentPrefix,
+                    createFirst: !(stack.deploymentBucket in existent)
+                });
+            })
+                .then(function () { return stack; });
+        })
+            .then(function (stack) { return stack.update(); });
     };
     Aws.prototype.createStack = function (project) {
         project.ensureLoaded();
@@ -165,89 +160,7 @@ var Aws = (function () {
                     ]
                 }
             });
-        console.log(YAML.dump(stack.template));
-        return stack;
-    };
-    Aws.prototype.uploadDeploymentFiles = function (stack) {
-        console.log("uploading to " + stack.deploymentBucket);
-        var awsS3Client = new aws.S3();
-        var s3Client = s3.createClient({ s3Client: awsS3Client });
-        return send(function () { return awsS3Client.createBucket({
-            Bucket: stack.deploymentBucket,
-            CreateBucketConfiguration: {
-                LocationConstraint: stack.region
-            }
-        }); })
-            .catch(function () { return console.log("Bucket creation failed"); })
-            .then(function () { return new Promise(function (resolve, reject) {
-            var progressBar = undefined;
-            var lastAmount = 0;
-            var uploader = s3Client.uploadDir({
-                localDir: "" + stack.project.deploymentDir,
-                s3Params: {
-                    Bucket: stack.deploymentBucket,
-                    Prefix: stack.deploymentPrefix + "/",
-                },
-            })
-                .on('progress', function () {
-                if (uploader == undefined || uploader.progressTotal == 0)
-                    return;
-                if (progressBar === undefined)
-                    progressBar = new ProgressBar('Syncing deployment bucket [:bar] :percent :etas', {
-                        incomplete: chalk.grey('\u2588'),
-                        complete: chalk.white('\u2588'),
-                        total: uploader.progressTotal,
-                        width: process.stdout['columns'] | 40,
-                    });
-                progressBar.tick(uploader.progressAmount - lastAmount);
-                lastAmount = uploader.progressAmount;
-            })
-                .on('end', function () {
-                resolve(stack);
-            })
-                .on('error', function (err) {
-                reject(err);
-            });
-        }); });
-    };
-    Aws.prototype.updateStack = function (stack) {
-        var cf = new aws.CloudFormation({
-            region: stack.region
-        });
-        return new Promise(function (resolve, reject) {
-            console.log('Stack exists??');
-            send(function () { return cf.describeStacks({ StackName: stack.name }); })
-                .then(function (x) { return resolve(true); })
-                .catch(function (x) { return x.message.endsWith('does not exist') ?
-                resolve(false) :
-                reject(x); });
-        })
-            .then(function (exists) { return new Promise(function (resolve, reject) {
-            if (exists) {
-                var task = 'Updating stack';
-                var method = 'updateStack';
-                var successState = 'stackUpdateComplete';
-            }
-            else {
-                var task = 'Creating stack';
-                var method = 'createStack';
-                var successState = 'stackCreateComplete';
-            }
-            console.log(task);
-            send(function () { return cf[method]({
-                StackName: stack.name,
-                TemplateBody: JSON.stringify(stack.template),
-                Capabilities: ['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'],
-            }); })
-                .then(function () {
-                send(function () { return cf.waitFor(successState, {
-                    StackName: stack.name
-                }); })
-                    .then(function () { return resolve(); })
-                    .catch(function (x) { return reject(x); });
-            })
-                .catch(function (xxx) { return reject(xxx); });
-        }); });
+        return Promise.resolve(stack);
     };
     __decorate([
         shell_1.command('deploy', 'build, pack, synchronizes and deploy the project'), 
@@ -256,20 +169,14 @@ var Aws = (function () {
         __metadata('design:returntype', void 0)
     ], Aws.prototype, "deploy", null);
     __decorate([
-        shell_1.command('redeploy', 'deploy the project without building nor syncing'), 
-        __metadata('design:type', Function), 
-        __metadata('design:paramtypes', [shell_1.Shell, project_1.Project, builder_1.Builder]), 
-        __metadata('design:returntype', void 0)
-    ], Aws.prototype, "reDeploy", null);
-    __decorate([
         shell_1.command('stack'), 
         __metadata('design:type', Function), 
         __metadata('design:paramtypes', [project_1.Project]), 
         __metadata('design:returntype', void 0)
     ], Aws.prototype, "createStack", null);
     Aws = __decorate([
-        shell_1.manager(shell_1.Shell), 
-        __metadata('design:paramtypes', [shell_1.Shell])
+        shell_1.manager(shell_1.Shell, project_1.Project), 
+        __metadata('design:paramtypes', [shell_1.Shell, project_1.Project])
     ], Aws);
     return Aws;
 }());

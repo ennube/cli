@@ -6,36 +6,6 @@ import {http} from '@ennube/runtime';
 import * as _ from 'lodash';
 
 
-// pasar la construccion de esto al index.
-interface ResponseStatus {
-
-    success: {
-        statusCode: number; // 2xx codes
-        templates: {
-            [mimeType:string]: string
-        };
-    };
-
-    redirect: {
-        statusCode: number; // 3xx codes..
-        templates: {
-            [mimeType:string]: string
-        };
-    };
-
-    error: {
-        [statusCode:number]: { // 4xx 5xx
-            templates: {
-                [mimeType:string]: string
-            };
-        }
-    };
-
-};
-
-
-
-
 export class RestApi extends Resource {
     constructor(stack: Stack, public gateway: http.Gateway) {
         super(stack);
@@ -54,6 +24,7 @@ export class RestApi extends Resource {
         };
     }
 }
+
 
 export class Endpoint extends Resource {
     constructor(public restApi: RestApi, public parent: Endpoint, public urlPart: string) {
@@ -78,14 +49,6 @@ export class Endpoint extends Resource {
         };
     }
 }
-
-const statusCodes = {
-    // http://www.restapitutorial.com/httpstatuscodes.html
-    GET:    [200, 308, 400, 401, 403, 404, 500],
-    POST:   [201, 303, 400, 401, 403, 404, 500],
-    PUT:    [204, 303, 400, 401, 403, 404, 500],
-    DELETE: [204, 303, 400, 401, 403, 404, 500],
-};
 
 
 export interface MethodParams {
@@ -151,64 +114,8 @@ export abstract class Method extends Resource {
     abstract get integrationType();
 
     abstract get integrationUri();
-/*
-    get integrationResponses() {
-        return statusCodes[this.httpMethod].map((statusCode):any => {
-            if( 200 <= statusCode && statusCode < 300 )
-                return {
-                    StatusCode: statusCode,
-                    SelectionPattern: undefined,
-                    ResponseParameters: {
-                    },
-                    ResponseTemplates: {
-                        'text/http': `#set($inputRoot = $input.path('$'))\n$inputRoot.content`,
-                        'application/json': `#set($inputRoot = $input.path('$'))\n$inputRoot.content`,
-                    }
-                };
-            else if( 300 <= statusCode && statusCode < 400 )
-                return {
-                    StatusCode: statusCode,
-                    SelectionPattern: 'http.*',
-                    ResponseParameters: {
-                        'method.response.header.location' : "integration.response.body.errorMessage",
-                    },
-                    ResponseTemplates: {
-                        'text/html' : "",
-                        'application/json' : "",
-                    },
-                };
-            else if( 400 <= statusCode )
-                return {
-                    StatusCode: statusCode,
-                    SelectionPattern: `\\[${statusCode},.*`,
-                    ResponseParameters: {
 
-                    },
-                    ResponseTemplates: {
-                        'text/http': `#set($_body = $util.parseJson($input.path('$.errorMessage'))[1])\n$_body.content`,
-                        'application/json': `#set($_body = $util.parseJson($input.path('$.errorMessage'))[1])\n$_body.content`,
-                    },
-                };
-        });
-    }
-
-    get methodResponses() {
-        return statusCodes[this.httpMethod].map((statusCode):any => {
-            return {
-               StatusCode: statusCode,
-               ResponseModels: {
-                   'text/html': 'Empty',
-                   'application/json': 'Empty',
-               },
-               ResponseParameters: {
-                   'method.response.header.location': false,
-               }
-           };
-        });
-    }
-*/
 }
-
 
 
 export interface LambdaMethodParams extends MethodParams {
@@ -229,7 +136,7 @@ export class LambdaMethod extends Method {
     }
 
     get integrationType() {
-        return 'AWS_PROXY'; // AWS_PROXY
+        return 'AWS_PROXY';
     }
 
     get integrationUri() {

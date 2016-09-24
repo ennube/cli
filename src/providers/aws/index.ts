@@ -4,63 +4,46 @@ import {Builder} from '../../builder';
 
 import * as rt from '@ennube/runtime';
 import {Stack} from './cloudformation';
+import {send} from './common';
+import * as s3 from './s3';
 import * as lambda from './lambda';
 import * as iam from './iam';
 import * as agw from './apigateway';
 
-import * as YAML from 'js-yaml';
+//import * as YAML from 'js-yaml';
 import * as _ from 'lodash';
 
 import {pascalCase, paramCase} from 'change-case';
 
-const aws = require('aws-sdk');
-const s3 = require('s3');
-import * as ProgressBar from 'progress';
-import * as chalk from 'chalk';
-
-
-function send(request: (()=>any)) {
-    return new Promise((resolve, reject) => {
-        request()
-        .on('success', (response) => resolve(response) )
-        .on('error', (response) => reject(response) )
-        .send();
-    });
-}
-
-
-@manager(Shell)
+@manager(Shell, Project)
 export class Aws implements Manager  {
 
-    constructor(public shell:Shell) {
+    constructor(public shell:Shell, public project: Project) {
     }
-
-
 
     @command('deploy', 'build, pack, synchronizes and deploy the project')
     deploy(shell:Shell, project: Project, builder: Builder) {
 
         return builder.build()
-
         .then( () => this.createStack(project) )
 
-        .then( (stack) => this.uploadDeploymentFiles(stack) )
+        .then( (stack) =>
+            s3.listBuckets()
+            .then( (existing) =>
+                // syncs deployment files..
+                s3.syncBucket({
+                    sourceDirectory: stack.project.deploymentDir,
+                    defaultRegion: stack.region,
+                    bucketName: stack.deploymentBucket,
+                    destinationDirectory: stack.deploymentPrefix,
+                    createFirst: !(stack.deploymentBucket in existing)
+                }))
 
-        .then( (stack) => this.updateStack(stack) )
+            .then( () => stack )
+        )
+
+        .then( (stack) => stack.update() )
     }
-
-    @command('redeploy', 'deploy the project without building nor syncing')
-    reDeploy(shell:Shell, project: Project, builder: Builder) {
-
-        return Promise.resolve()
-
-        .then( () => this.createStack(project) )
-
-//        .then( (stack) => this.uploadDeploymentFiles(stack) )
-
-        .then( (stack) => this.updateStack(stack) )
-    }
-
 
 
     @command('stack')
@@ -219,119 +202,8 @@ export class Aws implements Manager  {
             });
 
 
-        //
-        //
-        //
-
-
-        console.log(YAML.dump(stack.template));
-
-        return stack;
+        return Promise.resolve(stack);
     }
 
-
-////////////////////////////////////////////////////////////////////////////////
-
-    uploadDeploymentFiles(stack: Stack) {
-        console.log(`uploading to ${stack.deploymentBucket}`);
-        var awsS3Client = new aws.S3();
-
-        var s3Client = s3.createClient({ s3Client: awsS3Client });
-
-        return send( () => awsS3Client.createBucket({
-            Bucket: stack.deploymentBucket,
-            CreateBucketConfiguration: {
-                LocationConstraint: stack.region
-            }
-        }))
-        .catch( () => console.log(`Bucket creation failed`) )
-        .then( () => new Promise((resolve, reject) => {
-            let progressBar = undefined;
-            let lastAmount = 0;
-            let uploader = s3Client.uploadDir({
-                localDir: `${stack.project.deploymentDir}`,
-                s3Params: {
-                    Bucket: stack.deploymentBucket,
-                    Prefix: `${stack.deploymentPrefix}/`,
-                },
-            })
-            .on('progress', function() {
-                if(uploader == undefined || uploader.progressTotal == 0)
-                    return;
-
-                if( progressBar === undefined )
-                    progressBar = new ProgressBar('Syncing deployment bucket [:bar] :percent :etas', {
-                            incomplete: chalk.grey('\u2588'),
-                            complete: chalk.white('\u2588'),
-                            total: uploader.progressTotal,
-                            width: process.stdout['columns'] | 40,
-                    });
-
-                progressBar.tick(uploader.progressAmount - lastAmount);
-                lastAmount = uploader.progressAmount;
-            })
-            .on('end', function() {
-                resolve( stack )
-            })
-            .on('error', function(err) {
-                reject( err );
-            });
-        }));
-    }
-
-
-
-    updateStack(stack) {
-
-        let cf = new aws.CloudFormation({
-            region: stack.region
-        });
-
-        // si existe, efectua un update, sino un create...
-
-
-        return new Promise((resolve, reject) => {
-            console.log('Stack exists??');
-
-            send( () => cf.describeStacks({ StackName: stack.name }))
-            .then((x) => resolve(true))
-            .catch((x) => x.message.endsWith('does not exist')?
-                resolve(false):
-                reject(x))
-        })
-
-        // UPDATE / CREATE STACK
-
-        .then((exists: any) => new Promise((resolve, reject) => {
-
-            if( exists ) {
-                var task = 'Updating stack';
-                var method = 'updateStack';
-                var successState = 'stackUpdateComplete';
-            } else {
-                var task = 'Creating stack';
-                var method = 'createStack';
-                var successState = 'stackCreateComplete';
-            }
-
-            console.log(task);
-
-            send( () => cf[method]({
-                StackName: stack.name,
-                TemplateBody: JSON.stringify(stack.template),
-                Capabilities: ['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'],
-                //OnFailure: this.debug? 'ROLLBACK': 'DELETE',
-            }) )
-
-            .then( () => {
-                send( () => cf.waitFor(successState, {
-                    StackName: stack.name
-                }))
-                .then( () => resolve() )
-                .catch( (x) => reject(x) )
-            })
-            .catch( (xxx) => reject(xxx) );
-        }))
-    }
 
 }
