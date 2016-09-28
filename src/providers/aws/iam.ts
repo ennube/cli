@@ -1,11 +1,12 @@
 import {ServiceDescriptor} from '@ennube/runtime';
 import {pascalCase} from 'change-case';
-import * as cf from './cloudformation';
+import {Stack, Resource} from './cloudformation';
 
 export interface RoleParams {
     name: string;
     path?: string;
     policyDocument?: any;
+    managedPolicies?: string[];
 }
 /*
 export function statement(){
@@ -18,11 +19,12 @@ export function statement(){
     };
 }*/
 
-export class Role extends cf.Resource {
+export class Role extends Resource {
     name: string;
     path: string;
     policyDocument: any;
-    constructor(stack: cf.Stack, params: RoleParams) {
+    managedPolicies: string[];
+    constructor(stack: Stack, params: RoleParams) {
         super(stack);
         Object.assign(this, params);
 
@@ -37,6 +39,7 @@ export class Role extends cf.Resource {
         return {
             RoleName: this.name,
             Path: this.path,
+            ManagedPolicyArns: this.managedPolicies,
             AssumeRolePolicyDocument: this.policyDocument,
 //            ManagedPolicyArns: [ String, ... ],
 //            Policies: [ Policies, ... ],
@@ -49,11 +52,11 @@ export interface PolicyParams {
     roles?: Role[];
 }
 
-export class Policy extends cf.Resource {
+export class Policy extends Resource {
     policyDocument: any = {};
     roles: Role[] = [];
 
-    constructor(stack: cf.Stack, public name: string, params: PolicyParams = {}) {
+    constructor(stack: Stack, public name: string, params: PolicyParams = {}) {
         super(stack);
         Object.assign(this, params);
     }

@@ -1,19 +1,18 @@
-/// <reference types="core-js" />
 import { ServiceDescriptor } from '@ennube/runtime';
-import * as cf from './cloudformation';
+import { Stack, Resource } from './cloudformation';
 import * as iam from './iam';
-export declare class Function extends cf.Resource {
+export declare class Function extends Resource {
     serviceDescriptor: ServiceDescriptor;
     role: iam.Role;
-    constructor(stack: cf.Stack, serviceDescriptor: ServiceDescriptor, role: iam.Role);
+    constructor(stack: Stack, serviceDescriptor: ServiceDescriptor, role: iam.Role);
     readonly name: string;
     readonly type: string;
     readonly id: string;
     readonly properties: {
         Description: string;
         Runtime: string;
-        MemorySize: Number;
-        Timeout: Number;
+        MemorySize: number;
+        Timeout: number;
         Handler: string;
         Role: {
             'Fn::GetAtt': string[];
@@ -29,11 +28,11 @@ export interface PermissionParams {
     principal: string;
     action: string;
 }
-export declare class Permission extends cf.Resource {
+export declare class Permission extends Resource {
     function: Function;
     principal: string;
     action: string;
-    constructor(stack: cf.Stack, params: PermissionParams);
+    constructor(stack: Stack, params: PermissionParams);
     readonly type: string;
     readonly id: string;
     readonly properties: {

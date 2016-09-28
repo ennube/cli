@@ -5,7 +5,7 @@ var __extends = (this && this.__extends) || function (d, b) {
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 var change_case_1 = require('change-case');
-var cf = require('./cloudformation');
+var cloudformation_1 = require('./cloudformation');
 var Function = (function (_super) {
     __extends(Function, _super);
     function Function(stack, serviceDescriptor, role) {
@@ -37,7 +37,7 @@ var Function = (function (_super) {
     Object.defineProperty(Function.prototype, "properties", {
         get: function () {
             return {
-                Description: this.name,
+                Description: "" + change_case_1.pascalCase(this.stack.stage) + this.name,
                 Runtime: 'nodejs4.3',
                 MemorySize: this.serviceDescriptor.memoryLimit,
                 Timeout: this.serviceDescriptor.timeLimit,
@@ -53,7 +53,7 @@ var Function = (function (_super) {
         configurable: true
     });
     return Function;
-}(cf.Resource));
+}(cloudformation_1.Resource));
 exports.Function = Function;
 var Permission = (function (_super) {
     __extends(Permission, _super);
@@ -87,6 +87,6 @@ var Permission = (function (_super) {
         configurable: true
     });
     return Permission;
-}(cf.Resource));
+}(cloudformation_1.Resource));
 exports.Permission = Permission;
 //# sourceMappingURL=lambda.js.map

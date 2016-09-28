@@ -19,35 +19,39 @@ var iam = require('./iam');
 var agw = require('./apigateway');
 var _ = require('lodash');
 var change_case_1 = require('change-case');
-var Aws = (function () {
-    function Aws(shell, project) {
+var AWS = (function () {
+    function AWS(shell, project) {
         this.shell = shell;
         this.project = project;
     }
-    Aws.prototype.deploy = function (shell, project, builder) {
+    AWS.prototype.deploy = function (shell, project, builder) {
         var _this = this;
-        return builder.build()
-            .then(function () { return _this.createStack(project); })
-            .then(function (stack) {
-            return s3.listBuckets()
-                .then(function (existent) {
-                return s3.syncBucket({
-                    sourceDirectory: stack.project.deploymentDir,
-                    defaultRegion: stack.region,
-                    bucketName: stack.deploymentBucket,
-                    destinationDirectory: stack.deploymentPrefix,
-                    createFirst: !(stack.deploymentBucket in existent)
-                });
-            })
-                .then(function () { return stack; });
+        var stack;
+        var existingBuckets;
+        var promise = builder.build()
+            .then(function () { return stack = _this.createStack(project); })
+            .then(function (stack) { return s3.listBuckets(); })
+            .then(function (result) { return existingBuckets = result; })
+            .then(function () {
+            return s3.syncBucket({
+                sourceDirectory: stack.project.deploymentDir,
+                createBucket: !(stack.deploymentBucket in existingBuckets),
+                defaultRegion: stack.region,
+                bucketName: stack.deploymentBucket,
+                destinationDirectory: stack.deploymentPrefix,
+            });
         })
-            .then(function (stack) { return stack.update(); });
+            .then(console.log.bind(console))
+            .then(function () { return stack.update(); });
+        return promise;
     };
-    Aws.prototype.createStack = function (project) {
+    AWS.prototype.createStack = function (project) {
         project.ensureLoaded();
+        var stage = 'development';
         var stack = new cloudformation_1.Stack(project, {
+            stage: stage,
             deploymentBucket: change_case_1.paramCase(project.name) + "-deployment",
-            deploymentPrefix: "" + (new Date()).toJSON(),
+            deploymentPrefix: (new Date()).toJSON() + "-" + stage,
         });
         var lambdas = {};
         var lambdaRoles = [];
@@ -64,33 +68,20 @@ var Aws = (function () {
                             },
                             Action: ["sts:AssumeRole"]
                         }]
-                }
+                },
+                managedPolicies: [
+                    'arn:aws:iam::aws:policy/AWSLambdaExecute',
+                ].concat(serviceDescriptor.managedPolicies)
             });
             lambdas[serviceName] = new lambda.Function(stack, serviceDescriptor, role);
             lambdaRoles.push(role);
         }
-        if (lambdaRoles.length)
-            new iam.Policy(stack, 'LambdaLogger', {
-                roles: lambdaRoles,
-                policyDocument: {
-                    Version: '2012-10-17',
-                    Statement: [{
-                            Effect: "Allow",
-                            Action: [
-                                "logs:CreateLogGroup",
-                                "logs:CreateLogStream",
-                                "logs:PutLogEvents"
-                            ],
-                            Resource: "arn:aws:logs:" + stack.region + ":*:*"
-                        }]
-                }
-            });
         var apiGatewayRoles = [];
         for (var gatewayName in rt.http.allGateways) {
             var gateway = rt.http.allGateways[gatewayName];
             var restApi = new agw.RestApi(stack, gateway);
             var role = new iam.Role(stack, {
-                name: gatewayName + "Execution",
+                name: "" + change_case_1.pascalCase(project.name) + change_case_1.pascalCase(gatewayName) + "Gateway",
                 policyDocument: {
                     Version: "2012-10-17",
                     Statement: [{
@@ -101,6 +92,9 @@ var Aws = (function () {
                             Action: ["sts:AssumeRole"]
                         }]
                 },
+                managedPolicies: [
+                    'arn:aws:iam::aws:policy/service-role/AWSLambdaRole'
+                ]
             });
             apiGatewayRoles.push(role);
             var endpoints = {};
@@ -146,39 +140,25 @@ var Aws = (function () {
                 }
             });
         }
-        if (apiGatewayRoles.length)
-            new iam.Policy(stack, 'LambdaInvokeFunction', {
-                roles: apiGatewayRoles,
-                policyDocument: {
-                    "Version": "2012-10-17",
-                    "Statement": [
-                        {
-                            "Effect": "Allow",
-                            "Action": "lambda:InvokeFunction",
-                            "Resource": "*"
-                        }
-                    ]
-                }
-            });
-        return Promise.resolve(stack);
+        return stack;
     };
     __decorate([
         shell_1.command('deploy', 'build, pack, synchronizes and deploy the project'), 
         __metadata('design:type', Function), 
         __metadata('design:paramtypes', [shell_1.Shell, project_1.Project, builder_1.Builder]), 
         __metadata('design:returntype', void 0)
-    ], Aws.prototype, "deploy", null);
+    ], AWS.prototype, "deploy", null);
     __decorate([
         shell_1.command('stack'), 
         __metadata('design:type', Function), 
         __metadata('design:paramtypes', [project_1.Project]), 
         __metadata('design:returntype', void 0)
-    ], Aws.prototype, "createStack", null);
-    Aws = __decorate([
+    ], AWS.prototype, "createStack", null);
+    AWS = __decorate([
         shell_1.manager(shell_1.Shell, project_1.Project), 
         __metadata('design:paramtypes', [shell_1.Shell, project_1.Project])
-    ], Aws);
-    return Aws;
+    ], AWS);
+    return AWS;
 }());
-exports.Aws = Aws;
+exports.AWS = AWS;
 //# sourceMappingURL=index.js.map

@@ -1,10 +1,10 @@
 import {ServiceDescriptor} from '@ennube/runtime';
 import {pascalCase} from 'change-case';
-import * as cf from './cloudformation';
+import {Stack, Resource} from './cloudformation';
 import * as iam from './iam';
 
-export class Function extends cf.Resource {
-    constructor(stack: cf.Stack, public serviceDescriptor: ServiceDescriptor, public role: iam.Role) {
+export class Function extends Resource {
+    constructor(stack: Stack, public serviceDescriptor: ServiceDescriptor, public role: iam.Role) {
         super(stack);
     }
     get name() {
@@ -18,7 +18,7 @@ export class Function extends cf.Resource {
     }
     get properties() {
         return {
-            Description: this.name,
+            Description: `${pascalCase(this.stack.stage)}${this.name}`,
             Runtime: 'nodejs4.3',
             MemorySize: this.serviceDescriptor.memoryLimit,
             Timeout: this.serviceDescriptor.timeLimit,
@@ -40,11 +40,11 @@ export interface PermissionParams {
     action: string;
 }
 
-export class Permission extends cf.Resource {
+export class Permission extends Resource {
     function: Function;
     principal: string;
     action: string;
-    constructor(stack: cf.Stack, params: PermissionParams) {
+    constructor(stack: Stack, params: PermissionParams) {
         super(stack);
         Object.assign(this, params);
     }

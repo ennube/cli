@@ -1,6 +1,6 @@
 {
   "name": "@ennube/shell",
-  "version": "0.0.2-beta",
+  "version": "0.2.0-beta",
   "description": "Service-oriented architecture for cloud based web development.",
   "repository": "git@github.com:ennube/shell.git",
   "scripts": {

@@ -1,19 +1,22 @@
-import * as cf from './cloudformation';
+import { Stack, Resource } from './cloudformation';
 export interface RoleParams {
     name: string;
     path?: string;
     policyDocument?: any;
+    managedPolicies?: string[];
 }
-export declare class Role extends cf.Resource {
+export declare class Role extends Resource {
     name: string;
     path: string;
     policyDocument: any;
-    constructor(stack: cf.Stack, params: RoleParams);
+    managedPolicies: string[];
+    constructor(stack: Stack, params: RoleParams);
     readonly type: string;
     readonly id: string;
     readonly properties: {
         RoleName: string;
         Path: string;
+        ManagedPolicyArns: string[];
         AssumeRolePolicyDocument: any;
     };
 }
@@ -21,11 +24,11 @@ export interface PolicyParams {
     policyDocument?: any;
     roles?: Role[];
 }
-export declare class Policy extends cf.Resource {
+export declare class Policy extends Resource {
     name: string;
     policyDocument: any;
     roles: Role[];
-    constructor(stack: cf.Stack, name: string, params?: PolicyParams);
+    constructor(stack: Stack, name: string, params?: PolicyParams);
     readonly type: string;
     readonly id: string;
     readonly properties: {

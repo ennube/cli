@@ -1,3 +1,6 @@
+import {storage} from '@ennube/runtime';
+import {paramCase} from 'change-case';
+import {Stack, Resource} from './cloudformation';
 import {send} from './common';
 
 import * as _ from 'lodash';
@@ -7,9 +10,20 @@ import * as chalk from 'chalk';
 
 const aws = require('aws-sdk');
 const s3 = require('s3');
+/*
+export class Bucket extends Resource {
+    constructor(stack: Stack) {
+        super(stack);
+    }
+    get type() {
+        return 'AWS::S3::Bucket';
+    }
+    get id() {
+        return `${paramCase(this.stack.stage)}${this.name}`;
+    }
+}
 
-
-// s3.ts
+*/
 
 interface AWSListBucketsResult {
     Buckets: [{
@@ -34,8 +48,6 @@ export interface ListBucketsResult {
 export function listBuckets(): Promise<ListBucketsResult> {
     var s3 = new aws.S3();
     return send( () => s3.listBuckets())
-    .then( (x) => {console.log(x); return x} )
-
     .then( (result: AWSListBucketsResult) => _.fromPairs(
         result.Buckets.map( (item) => [item.Name,{
             creationDate: item.CreationDate,
@@ -52,67 +64,69 @@ export interface SyncBucketParams {
     defaultRegion:string;
     bucketName:string;
     destinationDirectory: string;
-    createFirst: boolean;
+    createBucket: boolean;
 //    removeIfNotExists: boolean;
 };
 
 
 export function syncBucket(params: SyncBucketParams) {
+    return new Promise((resolve, reject) => {
+        console.log(`Syncinc ${params.sourceDirectory} ←→` +
+                    `s3://${params.bucketName}/${params.destinationDirectory}`);
 
-    console.log(`Syncinc ${params.sourceDirectory} ←→` +
-                `s3://${params.bucketName}/${params.destinationDirectory}`);
+        var awsS3Client = new aws.S3();
+        var s3Client = s3.createClient({ s3Client: awsS3Client });
 
-    var awsS3Client = new aws.S3();
-    var s3Client = s3.createClient({ s3Client: awsS3Client });
+        let sync = () => {
 
+            let progressBar = undefined;
+            let lastAmount = 0;
+            let task = s3Client.uploadDir({
+                localDir: params.sourceDirectory,
+                s3Params: {
+                    Bucket: params.bucketName,
+                    Prefix: params.destinationDirectory?
+                        `${params.destinationDirectory}/`: ''
+                },
+            })
+            .on('progress', function() {
+                if(task == undefined || task.progressTotal == 0)
+                    return;
 
-    let promise = Promise.resolve();
+                if( progressBar === undefined )
+                    progressBar = new ProgressBar('[:bar] :percent :etas', {
+                            incomplete: chalk.grey('\u2588'),
+                            complete: chalk.white('\u2588'),
+                            total: task.progressTotal,
+                            width: process.stdout['columns'] | 40,
+                    });
 
-    if(params.createFirst) {
-        //console.log(`creating bucket`);
-        promise.then( () => send( () => awsS3Client.createBucket({
-            Bucket: params.bucketName,
-            CreateBucketConfiguration: {
-                LocationConstraint: params.defaultRegion
-            }
-        })))
-        .catch( () => console.log(`Bucket creation failed`) )
-    }
+                progressBar.tick(task.progressAmount - lastAmount);
+                lastAmount = task.progressAmount;
+            })
+            .on('end', function() {
+                resolve( )
+            })
+            .on('error', function(err) {
+                reject( err );
+            });
+        }
 
-    promise.then( () => new Promise((resolve, reject) => {
-        let progressBar = undefined;
-        let lastAmount = 0;
-        let task = s3Client.uploadDir({
-            localDir: params.sourceDirectory,
-            s3Params: {
+        if(params.createBucket) {
+            //console.log(`creating bucket`);
+            send( () => awsS3Client.createBucket({
                 Bucket: params.bucketName,
-                Prefix: params.destinationDirectory?
-                    `${params.destinationDirectory}/`: ''
-            },
-        })
-        .on('progress', function() {
-            if(task == undefined || task.progressTotal == 0)
-                return;
+                CreateBucketConfiguration: {
+                    LocationConstraint: params.defaultRegion
+                }
+            }))
+            .then( sync )
+            .catch( () => console.log(`Bucket creation failed`) )
+        }
+        else
+            sync()
 
-            if( progressBar === undefined )
-                progressBar = new ProgressBar('[:bar] :percent :etas', {
-                        incomplete: chalk.grey('\u2588'),
-                        complete: chalk.white('\u2588'),
-                        total: task.progressTotal,
-                        width: process.stdout['columns'] | 40,
-                });
 
-            progressBar.tick(task.progressAmount - lastAmount);
-            lastAmount = task.progressAmount;
-        })
-        .on('end', function() {
-            resolve( )
-        })
-        .on('error', function(err) {
-            reject( err );
-        });
-    }));
-
-    return promise;
+    });
 
 }

@@ -5,7 +5,7 @@ var __extends = (this && this.__extends) || function (d, b) {
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 var change_case_1 = require('change-case');
-var cf = require('./cloudformation');
+var cloudformation_1 = require('./cloudformation');
 var Role = (function (_super) {
     __extends(Role, _super);
     function Role(stack, params) {
@@ -31,6 +31,7 @@ var Role = (function (_super) {
             return {
                 RoleName: this.name,
                 Path: this.path,
+                ManagedPolicyArns: this.managedPolicies,
                 AssumeRolePolicyDocument: this.policyDocument,
             };
         },
@@ -38,7 +39,7 @@ var Role = (function (_super) {
         configurable: true
     });
     return Role;
-}(cf.Resource));
+}(cloudformation_1.Resource));
 exports.Role = Role;
 var Policy = (function (_super) {
     __extends(Policy, _super);
@@ -76,6 +77,6 @@ var Policy = (function (_super) {
         configurable: true
     });
     return Policy;
-}(cf.Resource));
+}(cloudformation_1.Resource));
 exports.Policy = Policy;
 //# sourceMappingURL=iam.js.map

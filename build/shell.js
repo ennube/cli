@@ -116,11 +116,12 @@ var Shell = (function () {
                     return _this.getManagerInstance(paramType);
                 });
                 var success = function (x) {
-                    console.error(managerClass.name + "." + methodName + " execution success");
+                    console.log(managerClass.name + "." + methodName + " success");
                 };
                 var error = function (e) {
-                    console.error(managerClass.name + "." + methodName + " execution failed");
-                    console.error(e);
+                    console.log(managerClass.name + "." + methodName + " failed");
+                    console.log(e, e.stack.split("\n"));
+                    console.log(e);
                 };
                 try {
                     var result = manager[methodName].apply(manager, params);
@@ -144,7 +145,6 @@ var Shell = (function () {
             }
         }
         yargs.argv;
-        yargs.showHelp();
     };
     Shell = __decorate([
         manager(), 

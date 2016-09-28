@@ -64,6 +64,7 @@ var Stack = (function () {
     Stack.prototype.update = function (onFailure) {
         var _this = this;
         if (onFailure === void 0) { onFailure = 'ROLLBACK'; }
+        console.log('update stack invoked');
         var cf = new aws.CloudFormation({ region: this.region });
         return new Promise(function (resolve, reject) {
             common_1.send(function () { return cf.describeStacks({ StackName: _this.name }); })

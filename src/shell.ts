@@ -129,7 +129,7 @@ export class Shell implements Manager {
     cli() {
         yargs
         .usage(banner + 'Usage: $0 <command>')
-        //.help('help');
+        //.help();
 
         let declareCommand = (managerClass, methodName, command, description, builder) => {
             yargs.command(command, description, builder, (args) => {
@@ -146,26 +146,24 @@ export class Shell implements Manager {
                         this.getManagerInstance(paramType));
 
                 let success = (x) => {
-                    console.error(`${managerClass.name}.${methodName} execution success`);
-                    //console.error(x);
+                    console.log(`${managerClass.name}.${methodName} success`);
+                    //console.log(x);
                 };
 
                 let error = (e) => {
-                    console.error(`${managerClass.name}.${methodName} execution failed`);
-                    console.error(e);
+                    console.log(`${managerClass.name}.${methodName} failed`);
+                    console.log(e, e.stack.split("\n"))
+                    console.log(e);
                 };
 
 
                 try {
                     let result = manager[methodName](...params);
-
                     if( typeOf(result) === Promise ) result
                         .then(success)
                         .catch(error);
                     else
                         success(result);
-
-
                 } catch(e) {
                     error(e);
                 }
@@ -191,6 +189,6 @@ export class Shell implements Manager {
         }
 
         yargs.argv;
-        yargs.showHelp();
+        //yargs.showHelp();
     }
 }

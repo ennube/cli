@@ -74,10 +74,7 @@ export class Stack {
     }
 
 
-
-    // stack.update()
     update(onFailure:string='ROLLBACK') {
-
         let cf = new aws.CloudFormation({ region: this.region });
 
         return new Promise((resolve, reject) => {

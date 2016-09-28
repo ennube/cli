@@ -16,7 +16,7 @@ import * as _ from 'lodash';
 import {pascalCase, paramCase} from 'change-case';
 
 @manager(Shell, Project)
-export class Aws implements Manager  {
+export class AWS implements Manager  {
 
     constructor(public shell:Shell, public project: Project) {
     }
@@ -24,29 +24,55 @@ export class Aws implements Manager  {
     @command('deploy', 'build, pack, synchronizes and deploy the project')
     deploy(shell:Shell, project: Project, builder: Builder) {
 
-        let existingBuckets: {};
+        let stack: Stack;
+        let existingBuckets: s3.ListBucketsResult;
 
-        return builder.build()
-        .then( () => this.createStack(project) )
+        let promise = builder.build()
+        .then( () => stack = this.createStack(project) )
 
+
+        .then( (stack) => s3.listBuckets())
+        .then( (result) => existingBuckets = result )
+        //.then( (x) => {console.log('Existing buckets', x); return x} )
+
+        // for each sync....
+
+        .then( () =>
+            s3.syncBucket({
+                sourceDirectory: stack.project.deploymentDir,
+                createBucket: !(stack.deploymentBucket in existingBuckets),
+                defaultRegion: stack.region,
+                bucketName: stack.deploymentBucket,
+                destinationDirectory: stack.deploymentPrefix,
+            })
+        )
+        .then(console.log.bind(console))
+
+
+/*
         .then( (stack) =>
             s3.listBuckets()
-            .then( (existing) =>
+            .then( (result) => existingBuckets = result )
+            //.then( (x) => {console.log('Existing buckets', x); return x} )
+            .then( () =>
                 // syncs deployment files..
                 s3.syncBucket({
                     sourceDirectory: stack.project.deploymentDir,
+                    createBucket: !(stack.deploymentBucket in existingBuckets),
                     defaultRegion: stack.region,
                     bucketName: stack.deploymentBucket,
                     destinationDirectory: stack.deploymentPrefix,
-                    createFirst: !(stack.deploymentBucket in existing)
                 }))
 
             .then( () => stack )
         )
+        */
 
-        .then( (stack) => stack.update() )
+        .then( () => stack.update() )
 
         // now syncs the static files...
+
+        return promise;
     }
 
 
@@ -54,11 +80,13 @@ export class Aws implements Manager  {
     createStack(project:Project) {
         project.ensureLoaded();
 
+        let stage = 'development';
+
         let stack = new Stack(project, {
-//          stage: ...,
+            stage: stage,
 //          region: ...,
             deploymentBucket: `${paramCase(project.name)}-deployment`,
-            deploymentPrefix: `${(new Date()).toJSON()}`,
+            deploymentPrefix: `${(new Date()).toJSON()}-${stage}`,
         });
 
         // Create lambda resources.
@@ -82,13 +110,17 @@ export class Aws implements Manager  {
                         },
                         Action: ["sts:AssumeRole"]
                     }]
-                }
+                },
+                managedPolicies: [
+//                    'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole',
+                    'arn:aws:iam::aws:policy/AWSLambdaExecute',
+                ].concat(serviceDescriptor.managedPolicies)
             });
 
             lambdas[serviceName] = new lambda.Function(stack, serviceDescriptor, role);
             lambdaRoles.push(role);
         }
-
+/*
         if(lambdaRoles.length)
             new iam.Policy(stack, 'LambdaLogger', {
                 roles: lambdaRoles,
@@ -105,7 +137,7 @@ export class Aws implements Manager  {
                     }]
                 }
             });
-
+*/
 
         //
         //   API GATEWAY
@@ -119,7 +151,7 @@ export class Aws implements Manager  {
             let restApi = new agw.RestApi(stack, gateway);
 
             let role = new iam.Role(stack, {
-                name: `${gatewayName}Execution`,
+                name: `${pascalCase(project.name)}${pascalCase(gatewayName)}Gateway`,
                 policyDocument: {
                     Version: "2012-10-17",
                     Statement: [{
@@ -130,6 +162,9 @@ export class Aws implements Manager  {
                         Action: ["sts:AssumeRole"]
                     }]
                 },
+                managedPolicies: [
+                    'arn:aws:iam::aws:policy/service-role/AWSLambdaRole'
+                ]
             });
             apiGatewayRoles.push(role);
 
@@ -189,7 +224,7 @@ export class Aws implements Manager  {
             });
 
         }
-
+/*
         if(apiGatewayRoles.length)
             new iam.Policy(stack, 'LambdaInvokeFunction', {
                 roles: apiGatewayRoles,
@@ -204,9 +239,9 @@ export class Aws implements Manager  {
                     ]
                 }
             });
+*/
 
-
-        return Promise.resolve(stack);
+        return stack;
     }
 
 

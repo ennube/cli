@@ -12,6 +12,6 @@ export interface SyncBucketParams {
     defaultRegion: string;
     bucketName: string;
     destinationDirectory: string;
-    createFirst: boolean;
+    createBucket: boolean;
 }
-export declare function syncBucket(params: SyncBucketParams): Promise<void>;
+export declare function syncBucket(params: SyncBucketParams): Promise<{}>;
