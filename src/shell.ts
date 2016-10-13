@@ -128,7 +128,12 @@ export class Shell implements Manager {
 
     cli() {
         yargs
+        .help('help')
+        .alias('v', 'version')
+        .version(function() { return require('../package').version; })
+        .describe('v', 'show version information')
         .usage(banner + 'Usage: $0 <command>')
+        .showHelpOnFail(false, "Specify --help for available options")
         //.help();
 
         let declareCommand = (managerClass, methodName, command, description, builder) => {

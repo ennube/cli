@@ -1,4 +1,3 @@
-/// <reference types="core-js" />
 import { Shell, Manager } from './shell';
 export declare type TemplateCollection = {
     [mimeType: string]: {

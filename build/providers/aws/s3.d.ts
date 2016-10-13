@@ -1,4 +1,3 @@
-/// <reference types="core-js" />
 export interface ListBucketsResult {
     [bucketName: string]: {
         creationDate: Date;

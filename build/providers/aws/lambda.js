@@ -44,6 +44,7 @@ var Function = (function (_super) {
                 Handler: this.name + ".mainEntry",
                 Role: this.role.getAtt('Arn'),
                 Code: {
+                    //S3Bucket: ref(referencia a un bucket por parametro),
                     S3Bucket: this.stack.deploymentBucket,
                     S3Key: this.stack.deploymentPrefix + "/" + this.name + ".zip"
                 },

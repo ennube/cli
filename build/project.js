@@ -20,16 +20,20 @@ var Project = (function () {
             response: {}
         };
         this.directory = shell.projectDir;
+        // ensureNpmLoaded
         var npmFileName = this.directory + "/package.json";
         if (fs.existsSync(npmFileName))
             this.npm = fs.readJSONSync(npmFileName);
         else
             throw new Error("You must run ennube into a npm inited directory");
+        // TODO: npm checks
+        // ensureTscLoaded
         var tscFileName = this.directory + "/tsconfig.json";
         if (fs.existsSync(tscFileName))
             this.tsc = fs.readJSONSync(tscFileName);
         else
             throw new Error("You must run ennube into a tsc inited directory");
+        // TODO: tsc checks
     }
     Object.defineProperty(Project.prototype, "name", {
         get: function () {
@@ -85,9 +89,12 @@ var Project = (function () {
         configurable: true
     });
     Project.prototype.ensureLoaded = function () {
+        // ensure builded, require Builder here..
         if (!this.mainModule) {
             console.log('Loading project...');
+            // ... config process.env variables...
             this.mainModule = require(this.mainModuleFileName);
+            // another checks here...
             this.discoverServices();
         }
     };

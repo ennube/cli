@@ -17,6 +17,7 @@ var s3 = require('./s3');
 var lambda = require('./lambda');
 var iam = require('./iam');
 var agw = require('./apigateway');
+//import * as YAML from 'js-yaml';
 var _ = require('lodash');
 var change_case_1 = require('change-case');
 var AWS = (function () {
@@ -43,6 +44,7 @@ var AWS = (function () {
         })
             .then(console.log.bind(console))
             .then(function () { return stack.update(); });
+        // now syncs the static files...
         return promise;
     };
     AWS.prototype.createStack = function (project) {
@@ -50,9 +52,11 @@ var AWS = (function () {
         var stage = 'development';
         var stack = new cloudformation_1.Stack(project, {
             stage: stage,
+            //          region: ...,
             deploymentBucket: change_case_1.paramCase(project.name) + "-deployment",
             deploymentPrefix: (new Date()).toJSON() + "-" + stage,
         });
+        // Create lambda resources.
         var lambdas = {};
         var lambdaRoles = [];
         for (var serviceName in rt.allServiceDescriptors) {
@@ -70,12 +74,34 @@ var AWS = (function () {
                         }]
                 },
                 managedPolicies: [
+                    //                    'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole',
                     'arn:aws:iam::aws:policy/AWSLambdaExecute',
                 ].concat(serviceDescriptor.managedPolicies)
             });
             lambdas[serviceName] = new lambda.Function(stack, serviceDescriptor, role);
             lambdaRoles.push(role);
         }
+        /*
+                if(lambdaRoles.length)
+                    new iam.Policy(stack, 'LambdaLogger', {
+                        roles: lambdaRoles,
+                        policyDocument: {
+                            Version: '2012-10-17',
+                            Statement: [{
+                                Effect: "Allow",
+                                Action: [
+                                  "logs:CreateLogGroup",
+                                  "logs:CreateLogStream",
+                                  "logs:PutLogEvents"
+                                ],
+                                Resource: `arn:aws:logs:${stack.region}:*:*`
+                            }]
+                        }
+                    });
+        */
+        //
+        //   API GATEWAY
+        //
         var apiGatewayRoles = [];
         for (var gatewayName in rt.http.allGateways) {
             var gateway = rt.http.allGateways[gatewayName];
@@ -100,6 +126,7 @@ var AWS = (function () {
             var endpoints = {};
             for (var url in gateway.endpoints) {
                 var httpMethods = gateway.endpoints[url];
+                // Ensure URL RESOURCE
                 var requestParameters = {};
                 var parentEndpoint = void 0;
                 var urlParams = [];
@@ -140,6 +167,22 @@ var AWS = (function () {
                 }
             });
         }
+        /*
+                if(apiGatewayRoles.length)
+                    new iam.Policy(stack, 'LambdaInvokeFunction', {
+                        roles: apiGatewayRoles,
+                        policyDocument: {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                                {
+                                    "Effect": "Allow",
+                                    "Action": "lambda:InvokeFunction",
+                                    "Resource": "*"
+                                }
+                            ]
+                        }
+                    });
+        */
         return stack;
     };
     __decorate([

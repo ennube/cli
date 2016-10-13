@@ -10,6 +10,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 var common_1 = require('./common');
 var yargs = require('yargs');
+//import * as _ from 'lodash'
 var banner = '                                                               \n' +
     '        ███████╗███╗   ██╗███╗   ██╗██╗   ██╗██████╗ ███████╗  \n' +
     '        ██╔════╝████╗  ██║████╗  ██║██║   ██║██╔══██╗██╔════╝  \n' +
@@ -69,6 +70,7 @@ var Shell = (function () {
         var _this = this;
         var manager = this.allManagerInstances.get(managerClass);
         if (manager === undefined) {
+            // creates a new manager, inject constructor types.
             var paramTypes = exports.allManagers[managerClass.name].paramTypes;
             manager = new (managerClass.bind.apply(managerClass, [void 0].concat(paramTypes.map(function (T) { return _this.getManagerInstance(T); }))))();
             this.allManagerInstances.set(managerClass, manager);
@@ -107,16 +109,25 @@ var Shell = (function () {
     Shell.prototype.cli = function () {
         var _this = this;
         yargs
-            .usage(banner + 'Usage: $0 <command>');
+            .help('help')
+            .alias('v', 'version')
+            .version(function () { return require('../package').version; })
+            .describe('v', 'show version information')
+            .usage(banner + 'Usage: $0 <command>')
+            .showHelpOnFail(false, "Specify --help for available options");
+        //.help();
         var declareCommand = function (managerClass, methodName, command, description, builder) {
             yargs.command(command, description, builder, function (args) {
                 var manager = _this.getManagerInstance(managerClass);
                 var paramtypes = Reflect.getMetadata("design:paramtypes", managerClass.prototype, methodName);
+                //                let returnType = Reflect.getMetadata("design:returntype",
+                //                    managerClass.prototype, methodName);
                 var params = paramtypes.map(function (paramType) {
                     return _this.getManagerInstance(paramType);
                 });
                 var success = function (x) {
                     console.log(managerClass.name + "." + methodName + " success");
+                    //console.log(x);
                 };
                 var error = function (e) {
                     console.log(managerClass.name + "." + methodName + " failed");
@@ -145,6 +156,7 @@ var Shell = (function () {
             }
         }
         yargs.argv;
+        //yargs.showHelp();
     };
     Shell = __decorate([
         manager(), 

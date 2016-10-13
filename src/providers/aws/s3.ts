@@ -1,4 +1,4 @@
-import {storage} from '@ennube/runtime';
+//import {storage} from '@ennube/runtime';
 import {paramCase} from 'change-case';
 import {Stack, Resource} from './cloudformation';
 import {send} from './common';
@@ -58,7 +58,6 @@ export function listBuckets(): Promise<ListBucketsResult> {
 }
 
 
-
 export interface SyncBucketParams {
     sourceDirectory: string;
     defaultRegion:string;
@@ -67,6 +66,11 @@ export interface SyncBucketParams {
     createBucket: boolean;
 //    removeIfNotExists: boolean;
 };
+
+/*
+headBucket(params = {}, callback) ⇒ AWS.Request
+This operation is useful to determine if a bucket exists and you have permission to access it.
+*/
 
 
 export function syncBucket(params: SyncBucketParams) {

@@ -1,5 +1,4 @@
 /// <reference types="lodash" />
-/// <reference types="core-js" />
 import { Project } from '../../project';
 import * as _ from 'lodash';
 export declare namespace fn {

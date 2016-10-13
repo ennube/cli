@@ -8,4 +8,12 @@ function send(request) {
     });
 }
 exports.send = send;
+/*
+export function log(message?: any, ...optionalParams: any[]) {
+    return (x) => {
+        console.log(message, ...optionalParams);
+        return x;
+    }
+}
+*/
 //# sourceMappingURL=common.js.map

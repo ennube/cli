@@ -1,4 +1,3 @@
-/// <reference types="core-js" />
 export interface ManagerClass extends Function {
     new (...params: Manager[]): Manager;
 }

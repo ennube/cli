@@ -23,6 +23,11 @@ var fn;
     fn.join = join;
 })(fn = exports.fn || (exports.fn = {}));
 var Stack = (function () {
+    /*
+        resources: {
+            [typeName:string]: Resource[]
+        } = { };
+    */
     function Stack(project, params) {
         this.project = project;
         this.region = 'eu-west-1';
@@ -64,7 +69,6 @@ var Stack = (function () {
     Stack.prototype.update = function (onFailure) {
         var _this = this;
         if (onFailure === void 0) { onFailure = 'ROLLBACK'; }
-        console.log('update stack invoked');
         var cf = new aws.CloudFormation({ region: this.region });
         return new Promise(function (resolve, reject) {
             common_1.send(function () { return cf.describeStacks({ StackName: _this.name }); })
@@ -99,6 +103,8 @@ var Stack = (function () {
                 StackName: _this.name
             });
         }); });
+        //.then( () => resolve() )
+        //.catch( (x) => reject(x) )
     };
     return Stack;
 }());

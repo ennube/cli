@@ -5,6 +5,7 @@ var ProgressBar = require('progress');
 var chalk = require('chalk');
 var aws = require('aws-sdk');
 var s3 = require('s3');
+// Returns a { [bucketName]: Date  relation of buckets }
 function listBuckets() {
     var s3 = new aws.S3();
     return common_1.send(function () { return s3.listBuckets(); })
@@ -16,6 +17,10 @@ function listBuckets() {
 }
 exports.listBuckets = listBuckets;
 ;
+/*
+headBucket(params = {}, callback) ⇒ AWS.Request
+This operation is useful to determine if a bucket exists and you have permission to access it.
+*/
 function syncBucket(params) {
     return new Promise(function (resolve, reject) {
         console.log(("Syncinc " + params.sourceDirectory + " \u2190\u2192") +
@@ -54,6 +59,7 @@ function syncBucket(params) {
             });
         };
         if (params.createBucket) {
+            //console.log(`creating bucket`);
             common_1.send(function () { return awsS3Client.createBucket({
                 Bucket: params.bucketName,
                 CreateBucketConfiguration: {

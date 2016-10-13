@@ -6,6 +6,16 @@ var __extends = (this && this.__extends) || function (d, b) {
 };
 var change_case_1 = require('change-case');
 var cloudformation_1 = require('./cloudformation');
+/*
+export function statement(){
+    return {
+        Effect: "Allow",
+        Principal: {
+            Service: ["lambda.amazonaws.com"]
+        },
+        Action: ["sts:AssumeRole"]
+    };
+}*/
 var Role = (function (_super) {
     __extends(Role, _super);
     function Role(stack, params) {

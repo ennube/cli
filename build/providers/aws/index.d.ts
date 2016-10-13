@@ -1,4 +1,3 @@
-/// <reference types="core-js" />
 import { Shell, Manager } from '../../shell';
 import { Project } from '../../project';
 import { Builder } from '../../builder';

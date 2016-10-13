@@ -109,6 +109,10 @@ var Method = (function (_super) {
     });
     Object.defineProperty(Method.prototype, "properties", {
         get: function () {
+            /*
+                Delegar a Response Mapper / Request Mapper cuando el metodo requiera
+                de integracion.
+             */
             return {
                 RestApiId: this.restApi.ref,
                 ResourceId: this.parent !== undefined ?
@@ -117,10 +121,13 @@ var Method = (function (_super) {
                 HttpMethod: this.httpMethod,
                 AuthorizationType: 'NONE',
                 RequestParameters: this.requestParameters,
+                // La capa de integracion de un método...
                 Integration: {
                     Type: this.integrationType,
                     Credentials: 'arn:aws:iam::597389418205:role/APIGatewayLambdaProxy',
+                    //                IntegrationHttpMethod: this.httpMethod,
                     IntegrationHttpMethod: 'POST',
+                    //                IntegrationResponses: this.integrationResponses,
                     Uri: this.integrationUri,
                 },
             };

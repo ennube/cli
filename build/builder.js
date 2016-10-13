@@ -31,6 +31,7 @@ var Builder = (function () {
         var _this = this;
         return new Promise(function (resolve, reject) {
             _this.shell.task("Running Typescript compiler");
+            //  tsc checks
             child_process.exec('tsc', function (err, stdout, stderr) {
                 if (err)
                     _this.shell.rejectTask(reject, stderr);
@@ -60,6 +61,7 @@ var Builder = (function () {
                     console.log(("Attaching '" + functionName + "' template ") +
                         ("from " + fileName + " to " + jsModule));
                     var compiled = pug.compileFileClient(file.path, Object.assign({
+                        //let compiled = pug.compileFile(file.path, Object.assign({
                         filename: fileName,
                     }, pugOptions));
                     fsx.appendFileSync(outDir + "/" + jsModule + ".js", ("\n/* pug template " + fileName + "*/\n") +
@@ -103,6 +105,7 @@ var Builder = (function () {
                     loaders: []
                 }
             });
+            // show stats?
             compiler.run(function (err, stats) {
                 if (err)
                     _this.shell.rejectTask(reject, err);
