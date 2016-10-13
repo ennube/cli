@@ -119,6 +119,7 @@ export class Stack {
 
         //.then( () => resolve() )
         //.catch( (x) => reject(x) )
+        //return this;
     }
 }
 

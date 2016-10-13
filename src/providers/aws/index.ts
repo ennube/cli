@@ -4,7 +4,6 @@ import {Builder} from '../../builder';
 
 import * as rt from '@ennube/runtime';
 import {Stack} from './cloudformation';
-import {send} from './common';
 import * as s3 from './s3';
 import * as lambda from './lambda';
 import * as iam from './iam';
@@ -12,6 +11,8 @@ import * as agw from './apigateway';
 
 //import * as YAML from 'js-yaml';
 import * as _ from 'lodash';
+import * as yaml from 'js-yaml';
+import * as fs from 'fs-extra';
 
 import {pascalCase, paramCase} from 'change-case';
 
@@ -29,7 +30,7 @@ export class AWS implements Manager  {
 
         let promise = builder.build()
         .then( () => stack = this.createStack(project) )
-
+        .then( () => fs.writeFileSync(`${project.buildDir}/stack.yml`, yaml.dump(stack.template)) )
 
         .then( (stack) => s3.listBuckets())
         .then( (result) => existingBuckets = result )
@@ -69,6 +70,7 @@ export class AWS implements Manager  {
         */
 
         .then( () => stack.update() )
+        //.then( () => stack.template)
 
         // now syncs the static files...
 
@@ -175,8 +177,8 @@ export class AWS implements Manager  {
             for( let url in gateway.endpoints ) {
                 let httpMethods = gateway.endpoints[url];
 
-                // Ensure URL RESOURCE
                 let requestParameters = {};
+                let parentEndpointUrl;
                 let parentEndpoint;
                 let urlParams = [];
                 let urlParts = [];
@@ -184,17 +186,19 @@ export class AWS implements Manager  {
                 url = _.trim(url, '/');
                 if(!!url)
                 for(let urlPart of url.split('/')) {
-                    urlParts.push(urlPart)
-                    let endpointUrl = urlParts.join('/');
-
                     let paramMatch = /\{([\-\w]+)(\+)?\}/.exec(urlPart);
                     if( paramMatch )
                         urlParams.push(paramMatch[1]);
 
-                    parentEndpoint = endpoints[endpointUrl];
-                    if( parentEndpoint === undefined )
-                        parentEndpoint = endpoints[endpointUrl] =
+                    urlParts.push(urlPart)
+                    let endpointUrl = urlParts.join('/');
+                    let endpoint = endpoints[endpointUrl];
+                    if( endpoint === undefined )
+                        endpoint = endpoints[endpointUrl] =
                             new agw.Endpoint(restApi, parentEndpoint, urlPart);
+
+                    parentEndpointUrl = endpointUrl;
+                    parentEndpoint = endpoint;
                 }
 
 
@@ -222,7 +226,6 @@ export class AWS implements Manager  {
                     gatewayName
                 }
             });
-
         }
 /*
         if(apiGatewayRoles.length)

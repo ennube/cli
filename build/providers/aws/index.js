@@ -19,6 +19,8 @@ var iam = require('./iam');
 var agw = require('./apigateway');
 //import * as YAML from 'js-yaml';
 var _ = require('lodash');
+var yaml = require('js-yaml');
+var fs = require('fs-extra');
 var change_case_1 = require('change-case');
 var AWS = (function () {
     function AWS(shell, project) {
@@ -31,6 +33,7 @@ var AWS = (function () {
         var existingBuckets;
         var promise = builder.build()
             .then(function () { return stack = _this.createStack(project); })
+            .then(function () { return fs.writeFileSync(project.buildDir + "/stack.yml", yaml.dump(stack.template)); })
             .then(function (stack) { return s3.listBuckets(); })
             .then(function (result) { return existingBuckets = result; })
             .then(function () {
@@ -44,6 +47,7 @@ var AWS = (function () {
         })
             .then(console.log.bind(console))
             .then(function () { return stack.update(); });
+        //.then( () => stack.template)
         // now syncs the static files...
         return promise;
     };
@@ -126,8 +130,8 @@ var AWS = (function () {
             var endpoints = {};
             for (var url in gateway.endpoints) {
                 var httpMethods = gateway.endpoints[url];
-                // Ensure URL RESOURCE
                 var requestParameters = {};
+                var parentEndpointUrl = void 0;
                 var parentEndpoint = void 0;
                 var urlParams = [];
                 var urlParts = [];
@@ -135,15 +139,17 @@ var AWS = (function () {
                 if (!!url)
                     for (var _i = 0, _a = url.split('/'); _i < _a.length; _i++) {
                         var urlPart = _a[_i];
-                        urlParts.push(urlPart);
-                        var endpointUrl = urlParts.join('/');
                         var paramMatch = /\{([\-\w]+)(\+)?\}/.exec(urlPart);
                         if (paramMatch)
                             urlParams.push(paramMatch[1]);
-                        parentEndpoint = endpoints[endpointUrl];
-                        if (parentEndpoint === undefined)
-                            parentEndpoint = endpoints[endpointUrl] =
+                        urlParts.push(urlPart);
+                        var endpointUrl = urlParts.join('/');
+                        var endpoint = endpoints[endpointUrl];
+                        if (endpoint === undefined)
+                            endpoint = endpoints[endpointUrl] =
                                 new agw.Endpoint(restApi, parentEndpoint, urlPart);
+                        parentEndpointUrl = endpointUrl;
+                        parentEndpoint = endpoint;
                     }
                 for (var httpMethod in httpMethods) {
                     var endpoint = httpMethods[httpMethod];

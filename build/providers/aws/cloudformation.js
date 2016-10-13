@@ -105,6 +105,7 @@ var Stack = (function () {
         }); });
         //.then( () => resolve() )
         //.catch( (x) => reject(x) )
+        //return this;
     };
     return Stack;
 }());
