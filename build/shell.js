@@ -158,6 +158,12 @@ var Shell = (function () {
         yargs.argv;
         //yargs.showHelp();
     };
+    Shell.prototype.startRepl = function () {
+        /*
+        Inicia el repl...
+        
+        */
+    };
     Shell = __decorate([
         manager(), 
         __metadata('design:paramtypes', [])

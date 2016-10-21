@@ -196,4 +196,11 @@ export class Shell implements Manager {
         yargs.argv;
         //yargs.showHelp();
     }
+
+    startRepl() {
+        /*
+        Inicia el repl...
+        
+        */
+    }
 }

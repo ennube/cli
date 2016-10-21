@@ -28,4 +28,5 @@ export declare class Shell implements Manager {
     resolveTask(resolve: any, ...params: any[]): any;
     rejectTask(reject: any, ...params: any[]): any;
     cli(): void;
+    startRepl(): void;
 }

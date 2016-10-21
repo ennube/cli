@@ -26,15 +26,17 @@ export class Builder implements Manager {
 
     runTsc() {
         return new Promise((resolve, reject) => {
-            this.shell.task(`Running Typescript compiler`);
+            console.log(`Running Typescript compiler`);
 
             //  tsc checks
 
             child_process.exec('tsc', (err, stdout, stderr) => {
-                if(err)
-                    this.shell.rejectTask(reject, stderr);
+                if(err) {
+                    console.error(stdout)
+                    reject();
+                }
                 else
-                    this.shell.resolveTask(resolve, stdout);
+                    resolve();
             })
         })
     }

@@ -28,15 +28,16 @@ var Builder = (function () {
             .then(function () { return _this.archiveServices(); });
     };
     Builder.prototype.runTsc = function () {
-        var _this = this;
         return new Promise(function (resolve, reject) {
-            _this.shell.task("Running Typescript compiler");
+            console.log("Running Typescript compiler");
             //  tsc checks
             child_process.exec('tsc', function (err, stdout, stderr) {
-                if (err)
-                    _this.shell.rejectTask(reject, stderr);
+                if (err) {
+                    console.error(stdout);
+                    reject();
+                }
                 else
-                    _this.shell.resolveTask(resolve, stdout);
+                    resolve();
             });
         });
     };
